@@ -21,11 +21,11 @@ let otherKey: CryptoKey;
 
 beforeAll(async () => {
   const pair = await generateKeyPair('RS256', { extractable: true });
-  privateKey = pair.privateKey as CryptoKey;
+  privateKey = pair.privateKey;
   const jwk = { ...(await exportJWK(pair.publicKey)), kid: KID, alg: 'RS256', use: 'sig' };
 
   // 別人の鍵。署名だけ差し替えたトークンを作るのに使う。
-  otherKey = (await generateKeyPair('RS256', { extractable: true })).privateKey as CryptoKey;
+  otherKey = (await generateKeyPair('RS256', { extractable: true })).privateKey;
   hmacKey = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode('公開鍵のふりをした共有鍵'),

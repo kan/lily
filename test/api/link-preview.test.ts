@@ -124,7 +124,7 @@ describe('リダイレクト', () => {
 
   it('回り続けるものは打ち切る', async () => {
     vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
-      requested.push(String(input));
+      requested.push(String(input instanceof Request ? input.url : input));
       return new Response(null, { status: 302, headers: { Location: 'https://example.com/loop' } });
     });
     expect(await title('https://example.com/loop')).toEqual({ title: null });
@@ -235,7 +235,7 @@ describe('OGP', () => {
 
   it('相対の og:image は、リダイレクトを追い終えた URL を基準に解決する', async () => {
     vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
-      const url = String(input);
+      const url = String(input instanceof Request ? input.url : input);
       if (url === 'https://example.com/go') {
         return new Response(null, { status: 302, headers: { Location: 'https://cdn.example.org/x/' } });
       }

@@ -10,6 +10,7 @@
  * と数十行の CSS で足りる。
  */
 import { html, raw } from 'hono/html';
+import { renderHtml } from '../html.ts';
 
 export type LoginPageOptions = {
   readonly siteName: string;
@@ -118,7 +119,7 @@ function setupNotice(options: LoginPageOptions, unusable: 'unset' | 'tooShort') 
 }
 
 export function renderLoginPage(options: LoginPageOptions): string {
-  return String(html`<!doctype html>
+  return renderHtml(html`<!doctype html>
     <html lang="ja">
       <head>
         <meta charset="utf-8" />

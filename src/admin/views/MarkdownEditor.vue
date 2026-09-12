@@ -302,7 +302,7 @@ async function toCard(): Promise<void> {
   if (target === null || carding.value) return;
 
   carding.value = true;
-  let html: string | null = null;
+  let html: string | null;
   try {
     html = await props.makeCard(target.url);
   } finally {

@@ -5,10 +5,24 @@
   "type": "module",
   "license": "ISC",
   "//repository": "publish 前に別リポジトリへ出す。npm のページに出るのと、provenance が「どのリポジトリのどのワークフローが出したか」をここと突き合わせるために要る",
-  "repository": { "type": "git", "url": "https://github.com/kan/lily.git" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kan/lily.git"
+  },
   "homepage": "https://github.com/kan/lily",
   "bugs": "https://github.com/kan/lily/issues",
-  "keywords": ["cms", "blog", "cloudflare", "cloudflare-workers", "workers", "d1", "r2", "markdown", "hono", "lily"],
+  "keywords": [
+    "cms",
+    "blog",
+    "cloudflare",
+    "cloudflare-workers",
+    "workers",
+    "d1",
+    "r2",
+    "markdown",
+    "hono",
+    "lily"
+  ],
   "//exports": "tsc がビルドした .js + .d.ts を配る (dist/lib)。ソースのまま配ると、利用側の tsconfig が lily のソースにも適用され、lily より厳しい設定の人のところでコンパイルエラーになる (skipLibCheck は .d.ts にしか効かない)。npm は publishConfig の exports を書き換えないので「開発は src」はできない —— lily を直しながら利用側で試すときは npm run build:lib:watch を併走させる",
   "//exports-subpaths": "paths と zip は Workers のランタイム型を 1 つも使わない。Node から読む道具 (E2E のフィクスチャ投入など) が、DOM lib と衝突する workerd の型ごと引き込まずに済むように分けてある。package.json を出しているのは、利用側のビルドが migrations と dist/admin の場所をここから辿るため (exports の中にコメント用のキーは置けない)",
   "exports": {
@@ -43,6 +57,8 @@
     "//types:build": "emit 用。ランタイム型だけを出す (Env と mainModule を落とす)。理由は tsconfig.build.json のコメント",
     "types:build": "wrangler types ./build-types.d.ts --include-env false -c ./wrangler.jsonc",
     "typecheck": "npm run types && tsc --noEmit && vue-tsc --noEmit -p tsconfig.admin.json",
+    "//lint": "型情報を使う規則があるので、型検査と同じく wrangler types が先に要る (tsconfig の types が worker-configuration.d.ts を指す)。何を見て何を見ないかは eslint.config.js に書いた",
+    "lint": "npm run types && eslint .",
     "//db": "テスト用のローカル D1。利用側は自分の wrangler.jsonc から同じ migrations/ を当てる",
     "db:migrate:local": "wrangler d1 migrations apply DB --local -c ./wrangler.jsonc"
   },
@@ -64,10 +80,15 @@
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.1.4",
+    "@eslint/js": "^10.0.1",
     "@types/hast": "^3.0.5",
     "@types/node": "^26.4.1",
     "@vitejs/plugin-vue": "^6.0.8",
+    "eslint": "^10.10.0",
+    "eslint-plugin-vue": "^10.11.0",
+    "globals": "^17.12.0",
     "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.0",
     "vite": "^8.2.2",
     "vitest": "^4.1.11",
     "vue": "^3.5.42",

@@ -267,7 +267,8 @@ async function xrpc<T>(
   if (!response.ok) {
     throw new BlueskyError(step, `${nsid} が ${response.status}: ${await errorText(response)}`);
   }
-  return (await response.json()) as T;
+  // 型は `xrpc<T>` の呼び出し側が決める（`json<T>()` が戻り値から T を取る）。
+  return await response.json();
 }
 
 /** XRPC のエラーは `{ error, message }` の JSON。読めなければ生のまま切って出す。 */

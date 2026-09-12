@@ -440,7 +440,10 @@ export function createApi(config: PageConfig) {
 
       // ファイル名は記事のパスと同じ規則で見る。export でそのままディレクトリに
       // 書き出すので、書ける形であることまで含めて縛る。
-      const filename = normalizeSegment(String(form.get('filename') ?? file.name));
+      // **`FormData.get()` は File も返す。** 文字列で来たものだけを名前として見て、
+      // それ以外は添付そのものの名前に落とす（`String(File)` は `[object File]`）。
+      const given = form.get('filename');
+      const filename = normalizeSegment(typeof given === 'string' ? given : file.name);
       if (!filename.ok) return c.json(...apiError(filename.error.code));
 
       // **形式は拡張子で決める。** import には Content-Type が無いので、ここだけ
@@ -679,7 +682,9 @@ async function cardThumb(
     } catch (error) {
       // **R2 の失敗で告知を落とさない。** ここは絵を選ぶだけの処理なので、
       // 読めなければ共通の 1 枚に落ちればよい（`ogpThumb` と同じ扱い）。
-      console.warn(`bluesky: OGP の添付を読めないので共通の絵にする (${ogp.r2_key}): ${error}`);
+      console.warn(
+        `bluesky: OGP の添付を読めないので共通の絵にする (${ogp.r2_key}): ${String(error)}`,
+      );
     }
   }
   return await ogpThumb(config, env, requestUrl);

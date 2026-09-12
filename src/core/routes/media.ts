@@ -81,7 +81,9 @@ export function mediaRoutes(config: PageConfig): Hono<Env> {
     const format = negotiating ? pickFormat(c.req.header('Accept') ?? null, media.mime) : null;
 
     if (format !== null && images) {
-      const converted = await optimize(images, object.body, format);
+      // `R2ObjectBody.body` は `ReadableStream<any>`。R2 が返すのはバイト列なので、
+      // 中身の型はここで決める。
+      const converted = await optimize(images, object.body as ReadableStream<Uint8Array>, format);
       // 変換できなければ原本。**ストリームは使い切っているので取り直す。**
       if (converted) return new Response(converted.body, { headers: headers(format, true) });
 

@@ -16,7 +16,7 @@ afterEach(() => setStubUser(null));
  */
 const client = hc<LilyApi>('https://blog.example.com/api', {
   fetch: (input: RequestInfo | URL, init?: RequestInit) =>
-    getRootRequest(new Request(input as RequestInfo, init)),
+    getRootRequest(new Request(input, init)),
 });
 
 it('型付きのクライアントから一通り操作できる', async () => {

@@ -117,6 +117,15 @@ export async function fetchExternal(
 }
 
 /**
+ * 応答の本体を読む口。**`Response.body` は `ReadableStream<any>`**（workerd の型）
+ * なので、読む先の型はここで 1 度だけ決める。外の世界から来た `any` を関数の中まで
+ * 流さない。
+ */
+function bodyReader(response: Response): ReadableStreamDefaultReader<Uint8Array> | undefined {
+  return response.body?.getReader();
+}
+
+/**
  * 応答の中身を上限まで読む。**超えたら諦めて null。**
  *
  * `arrayBuffer()` / `json()` に任せると、相手が申告と違う大きさを流してきたときに、
@@ -124,7 +133,7 @@ export async function fetchExternal(
  * 違う）ので `fetchExternal()` には持たせず、呼ぶ側が渡す。
  */
 export async function readCapped(response: Response, max: number): Promise<Uint8Array | null> {
-  const reader = response.body?.getReader();
+  const reader = bodyReader(response);
   if (!reader) return null;
 
   const chunks: Uint8Array[] = [];
@@ -212,7 +221,7 @@ export function httpUrl(value: string | null | undefined, base?: URL): URL | nul
  * そこで打ち切ると題しか取れない。
  */
 async function readHead(response: Response): Promise<string> {
-  const reader = response.body?.getReader();
+  const reader = bodyReader(response);
   if (!reader) return '';
 
   const decoder = new TextDecoder();

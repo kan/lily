@@ -53,7 +53,7 @@ export function rehypeMedia(options: MediaPluginOptions) {
   return (tree: Root): void => {
     visit(tree, (node) => {
       if (node.type === 'element') {
-        const element = node as Element;
+        const element = node;
         for (const attribute of URL_ATTRIBUTES) {
           const value = element.properties[attribute];
           if (typeof value !== 'string') continue;

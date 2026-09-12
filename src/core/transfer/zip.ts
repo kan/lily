@@ -266,7 +266,9 @@ async function inflate(
     try {
       chunk = await reader.read();
     } catch (error) {
-      throw new ZipError(`展開できない: ${path} (${error instanceof Error ? error.message : error})`);
+      throw new ZipError(
+        `展開できない: ${path} (${error instanceof Error ? error.message : String(error)})`,
+      );
     }
     if (chunk.done) break;
     total += chunk.value.length;

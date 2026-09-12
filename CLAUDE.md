@@ -29,12 +29,16 @@
 ```bash
 npm test          # vitest。実 workerd + 実 D1（pretest が dist/admin を作る）
 npm run typecheck # wrangler types → tsc（src と管理画面の 2 プロジェクト）
+npm run lint      # eslint。型情報を使うので wrangler types が先に走る
 npm run build     # build:admin（vite → dist/admin）+ build:lib（tsc → dist/lib）
 npm run db:migrate:local
 ```
 
-lint の設定は無い。型検査は `tsc`（`src` + `test`）と `vue-tsc`（管理画面）の 2 本で、
-`npm run typecheck` が両方を回す。
+**lint は型検査と別の観点。** `tsconfig` が既に `strict` 系を掛けているので、eslint が
+見るのは**型情報を使う規則**（await 漏れ・floating した Promise・`any` の伝播）と Vue の
+template だけ。**フォーマッタは入れていない**ので、整形の規則も入れない（`.vue` は
+`flat/essential` まで）。何を外したかと理由は `eslint.config.js` に書いてある。
+規則を足したり外したりするときは、**理由をその場に書く。**
 
 ## コミット前の手順
 
@@ -42,7 +46,7 @@ lint の設定は無い。型検査は `tsc`（`src` + `test`）と `vue-tsc`（
 
 1. `/code-review` —— 実害のあるバグを洗う
 2. `/simplify` —— 重複・冗長・設計の深さを見て直す
-3. `npm run typecheck && npm test`
+3. `npm run lint && npm run typecheck && npm test`
 4. ユーザーの承認を得てからコミットする
 
 **順番に実行すること。** `/simplify` は修正を適用するので、`/code-review` と並行させると

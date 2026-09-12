@@ -243,9 +243,16 @@ export async function api(path: string, init?: RequestInit): Promise<Response> {
   return await getRootRequest(request);
 }
 
+/**
+ * 受け取った JSON。**テストが見るのは本体の型ではなく、実際に出た JSON。**
+ * `unknown` にすると全ての assert に cast が要り、そのとき書いた型が正しいかを
+ * 見るテストになる。
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- 上記の理由
+type JsonBody = any;
+
 /** レスポンスの JSON。テストでは形を都度書かずに読む。 */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function json(res: Response): Promise<any> {
+export async function json(res: Response): Promise<JsonBody> {
   return await res.json();
 }
 
@@ -254,7 +261,7 @@ export async function apiJson(
   method: string,
   path: string,
   body?: unknown,
-): Promise<{ status: number; body: any }> {
+): Promise<{ status: number; body: JsonBody }> {
   const res = await api(path, {
     method,
     ...(body === undefined

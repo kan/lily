@@ -12,16 +12,21 @@
  * 確かめられる（`test/date-format.test.ts`）。
  */
 
+/**
+ * **メソッドではなく関数のプロパティとして書く。** 返すのはクラスではなく
+ * クロージャを持つただのオブジェクトで、`const { isoDate } = createDateFormat(...)`
+ * のように取り出して使う。メソッド記法だと「`this` から切り離した」ことになる。
+ */
 export type DateFormat = {
   /** `YYYY-MM-DD`。一覧に出す日付。 */
-  isoDate(d: Date): string;
+  isoDate: (d: Date) => string;
   /** `<input type="datetime-local">` に入れる `YYYY-MM-DDTHH:mm`。 */
-  toDateTimeInput(d: Date): string;
+  toDateTimeInput: (d: Date) => string;
   /**
    * その逆。`YYYY-MM-DDTHH:mm` を**そのタイムゾーンの日時として**読み、
    * UTC の ISO8601 に戻す。読めない入力は null（呼び出し側が弾く）。
    */
-  fromDateTimeInput(value: string): string | null;
+  fromDateTimeInput: (value: string) => string | null;
 };
 
 export function createDateFormat(timeZone: string): DateFormat {

@@ -254,9 +254,9 @@ describe('posts.json', () => {
 
     const res = await get(`${MOUNT}/posts.json`);
     expect(res.status).toBe(200);
-    const { posts } = (await res.json()) as {
+    const { posts }: {
       posts: { id: string; title: string; url: string; published_at: string; tags: string[] }[];
-    };
+    } = await res.json();
 
     expect(posts.map((p) => p.title)).toEqual(['新しい', '古い']);
     expect(posts[0]?.url).toBe(`${SITE}${MOUNT}/new/`);
@@ -272,8 +272,10 @@ describe('posts.json', () => {
         publishedAt: `2026-08-01T00:00:${String(i).padStart(2, '0')}.000Z`,
       });
     }
-    const count = async (query: string) =>
-      ((await (await get(`${MOUNT}/posts.json${query}`)).json()) as { posts: unknown[] }).posts.length;
+    const count = async (query: string) => {
+      const body: { posts: unknown[] } = await (await get(`${MOUNT}/posts.json${query}`)).json();
+      return body.posts.length;
+    };
 
     expect(await count('')).toBe(5);
     expect(await count('?limit=3')).toBe(3);
@@ -284,17 +286,17 @@ describe('posts.json', () => {
 
   it('説明が空なら本文の冒頭を載せる (本体サイトの付箋が空にならない)', async () => {
     await seedPost({ path: 'auto', description: null, bodyMd: '本文の書き出し。' });
-    const { posts } = (await (await get(`${MOUNT}/posts.json`)).json()) as {
-      posts: { description: string | null }[];
-    };
+    const { posts }: { posts: { description: string | null }[] } = await (
+      await get(`${MOUNT}/posts.json`)
+    ).json();
     expect(posts[0]?.description).toBe('本文の書き出し。');
   });
 
   it('タグと説明も載せる', async () => {
     await seedPost({ path: 'p', description: 'ようやく', tags: ['dev', '日記'] });
-    const { posts } = (await (await get(`${MOUNT}/posts.json`)).json()) as {
-      posts: { description: string | null; tags: string[] }[];
-    };
+    const { posts }: { posts: { description: string | null; tags: string[] }[] } = await (
+      await get(`${MOUNT}/posts.json`)
+    ).json();
     expect(posts[0]?.description).toBe('ようやく');
     expect(posts[0]?.tags.sort()).toEqual(['dev', '日記']);
   });

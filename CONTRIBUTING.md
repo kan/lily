@@ -13,6 +13,7 @@ Vitest can start a real workerd with the right bindings, and so `wrangler types`
 npm install
 npm test          # Vitest, on a real workerd with a real D1
 npm run typecheck # wrangler types → tsc (two projects: src, and the admin UI)
+npm run lint      # ESLint (type-aware; wrangler types runs first)
 npm run build     # build both of the things that ship (below)
 npm run db:migrate:local  # apply the migrations to the local D1 used by tests
 ```
@@ -81,6 +82,25 @@ tsconfig.json        Type checking (src + test). tsconfig.admin.json is the admi
 tsconfig.build.json  The emit that ships (dist/lib). Extends the above
 ```
 
+## Lint
+
+**The linter only looks at what the type checker cannot.** `tsconfig.json` already runs
+`strict`, `noUnusedLocals`, `noUnusedParameters` and `noUncheckedIndexedAccess`, so ESLint
+adds the type-aware rules on top of that — missing `await`, floating promises, `any`
+spreading out of an untyped boundary, pointless type assertions — plus the Vue template
+rules, which live outside `tsc` entirely. `npm run lint -- --fix` applies what is
+auto-fixable; check the result, since `no-unnecessary-type-assertion` can be wrong about an
+assertion that is feeding a generic like `Response.json<T>()`.
+
+**There is no formatter**, and therefore no formatting rules: `eslint-plugin-vue` is used at
+`flat/essential`, not `flat/recommended`, because most of the difference is "how many
+attributes per line". Rules that are turned off are turned off with the reason written next
+to them in `eslint.config.js`; keep it that way.
+
+Type information comes from two different tsconfigs, so the admin UI (`src/admin/`, including
+`.vue`) is linted with syntax-only rules — its types are checked by `vue-tsc` instead. The
+reasoning is in the file's doc comment.
+
 ## Tests
 
 Tests run on a real workerd with a real D1 (`@cloudflare/vitest-plugin`), not a mock.
@@ -95,7 +115,7 @@ lily in is the evidence that the outward contract held.
 
 ## CI and releases
 
-CI runs `typecheck`, then `build:lib`, then `test`. **The emit runs separately from the type
+CI runs `typecheck`, then `lint`, then `build:lib`, then `test`. **The emit runs separately from the type
 check** because `typecheck` is `--noEmit` and would pass on a state where only the emit is
 broken — and the emit is what ships.
 

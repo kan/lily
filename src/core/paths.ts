@@ -212,7 +212,7 @@ export interface Urls {
  * URL 生成を要らない層 (`core/db/` と `core/transfer/`) はこちらだけを受け取る。
  */
 export type PostPaths = {
-  normalizePostPath(input: string): Result<string, PathError>;
+  normalizePostPath: (input: string) => Result<string, PathError>;
   /**
    * 第 1 セグメントが予約されているか。
    *
@@ -223,7 +223,7 @@ export type PostPaths = {
    * (`resolvePath` の `lower()`) も ci なので、ここだけ厳密にすると `Admin` が
    * 記事パスとして通ったうえで `/AdMiN` がその記事に解決されてしまう。
    */
-  isReservedSegment(segment: string): boolean;
+  isReservedSegment: (segment: string) => boolean;
 };
 
 /**

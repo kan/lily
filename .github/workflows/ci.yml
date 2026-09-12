@@ -25,6 +25,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      # 型検査が見ないもの（await 漏れ・floating した Promise・`any` の伝播・
+      # Vue の template）。**型検査とは別の観点**なので両方回す。
+      - run: npm run lint
       # **emit を型検査とは別に回す。** `typecheck` は `--noEmit` なので、
       # emit だけが壊れる状態（`rootDir` の外のファイルを import した等）を通す。
       # 配るのは emit したものなので、ここで落としておかないと publish で初めて分かる。

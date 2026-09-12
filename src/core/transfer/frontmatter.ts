@@ -119,7 +119,7 @@ export function parseFrontmatter(text: string): Result<FrontmatterDoc, Frontmatt
 
   // prototype を持たせない。`key in data` が継承したプロパティを拾うと、
   // `constructor` のようなキーが duplicate-key に化ける。
-  const data: Record<string, FmValue> = Object.create(null);
+  const data = Object.create(null) as Record<string, FmValue>;
   let i = 1;
   while (i < close) {
     const line = chomp(lines[i] as string);
@@ -201,7 +201,7 @@ function parseBlockSequence(
 function parseBlockMapping(
   block: readonly { text: string; line: number }[],
 ): Result<Record<string, string>, FrontmatterError> {
-  const map: Record<string, string> = Object.create(null);
+  const map = Object.create(null) as Record<string, string>;
   for (const entry of block) {
     const text = entry.text.trim();
 

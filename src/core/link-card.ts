@@ -20,6 +20,7 @@ import { html } from 'hono/html';
 import { createMedia, findByPostAndFilename, mediaR2Key } from './db/media.ts';
 import { uniqueViolationTarget } from './db/errors.ts';
 import type { MediaRow, PostRow } from './db/types.ts';
+import { renderHtml } from './html.ts';
 import { toHex } from './ids.ts';
 import { fetchGithubRepo, githubRepoPath, githubStats } from './link-github.ts';
 import { fetchExternal, fetchLinkPreview, readCapped } from './link-preview.ts';
@@ -93,7 +94,7 @@ export function linkCardHtml(card: LinkCardText): string {
 
   const classes = card.kind === undefined ? 'link-card' : `link-card link-card-${card.kind}`;
 
-  return String(
+  return renderHtml(
     html`<a class="${classes}" href="${card.url}">${image}
   <span class="link-card-text">
     <span class="link-card-title">${card.title}</span>${row('link-card-desc', card.description)}${row('link-card-meta', card.meta)}
