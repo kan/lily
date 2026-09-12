@@ -13,6 +13,10 @@
  * 増やすときは、この型に足して各表（`theme/text.ts`・`auth/login-page.ts`・
  * `admin/i18n.ts`）を埋める。**型が揃っていないと落ちる**ので、書き忘れた表が
  * 残ることはない。
+ *
+ * **これは「lily が言葉を持っている言語」であって、拡張点ではない。** 一覧に無い
+ * 言語のブログは、この規則の外で言葉を持つ —— 標準テーマなら
+ * `createDefaultTheme({ text })`、自前のテーマならそのテーマの中で。
  */
 export const LOCALES = ['en', 'ja'] as const;
 
@@ -28,9 +32,22 @@ export const DEFAULT_LOCALE: Locale = 'en';
  * 完全一致を先に見る形に足せばよい（今は 2 つしかないので要らない）。
  */
 export function resolveLocale(tag: string | undefined): Locale {
-  if (tag === undefined) return DEFAULT_LOCALE;
-  const primary = tag.toLowerCase().split('-')[0];
-  return LOCALES.find((locale) => locale === primary) ?? DEFAULT_LOCALE;
+  return resolveLocales(tag === undefined ? [] : [tag]);
+}
+
+/**
+ * 候補を順に見て、**最初に表のある言語**。無ければ既定。
+ *
+ * ブラウザは希望の言語を並びで持つ（`navigator.languages`）。先頭だけを見ると、
+ * 1 番目が表に無い言語の人に、2 番目に置いた言語があっても英語で出してしまう。
+ */
+export function resolveLocales(tags: readonly string[]): Locale {
+  for (const tag of tags) {
+    const primary = tag.toLowerCase().split('-')[0];
+    const match = LOCALES.find((locale) => locale === primary);
+    if (match !== undefined) return match;
+  }
+  return DEFAULT_LOCALE;
 }
 
 /**

@@ -70,7 +70,8 @@ shows the effective configuration, and recovery when the session expires. It is 
 already built — **consumers need no Vue toolchain.**
 
 **English or Japanese**, on both sides. The public pages take their language from the
-configuration; the admin UI takes it from the browser and remembers what you switch it to.
+configuration; the admin UI takes it from the browser and remembers what you switch it to. Any
+other language is a config away — the theme takes its words from you without being copied.
 
 **Authentication that is on before there is anything behind it.** `<mount>/api/*` and
 `<mount>/admin/*` never resolve without passing an `AuthAdapter`, so a route added later

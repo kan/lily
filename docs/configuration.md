@@ -10,7 +10,7 @@ these types and nothing else.
 | `site.url` | The origin you serve from. Absolute URLs in feeds and `<link rel=canonical>` start here |
 | `site.name` / `site.description` / `site.author` | Shown in `<title>`, OGP and the feeds |
 | `site.lang` | BCP 47 language of the content. **No default in core** — a site in another language must not be quietly served as Japanese |
-| `site.uiLang` | BCP 47 language of the *words the theme and the login page put on screen*, if that differs from the content. Defaults to `lang`; a language lily has no table for falls back to English. **Never chosen from `Accept-Language`** — public pages are shared-cached, so one reader's language would be served to the next |
+| `site.uiLang` | BCP 47 language of the *words the theme and the login page put on screen*, if that differs from the content. Defaults to `lang`; a language lily has no table for falls back to English, and [the theme can carry its own words](./themes.md#changing-the-words-without-copying-the-theme). **Never chosen from `Accept-Language`** — public pages are shared-cached, so one reader's language would be served to the next |
 | `site.timeZone` | IANA name used to cut dates into days. **No default either**: falling back to the runtime's zone changes a post's date between the Worker and the browser |
 | `site.ogImage` | One image for the whole site, used when a post has not chosen its own. Absolute URL; width and height only when you know them |
 | `site.favicon` | Absolute URL. Omit it and the theme emits no `<link rel="icon">` |

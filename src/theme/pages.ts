@@ -13,7 +13,7 @@ import type {
   TagView,
 } from '../core/theme.ts';
 import { layout } from './layout.ts';
-import { textForSite, type Text } from './text.ts';
+import type { Text } from './text.ts';
 
 /**
  * `html` は値に Promise が混ざると Promise を返す。組み立ての途中では
@@ -91,12 +91,16 @@ function tagChips(tags: readonly TagView[]): Html[] {
   return tags.map((tag) => html`<a class="tag" href="${tag.url}">${tag.name}</a>`);
 }
 
+/**
+ * 記事に添える日付とタグ。**表は上から渡す** —— 一覧は記事ごとにこれを呼ぶので、
+ * ここで選び直すと 1 ページで何度も同じ判定をすることになる。
+ */
 function postMeta(
   site: SiteConfig,
+  text: Text,
   post: PostSummaryView,
   options: { updated?: boolean } = {},
 ): Html {
-  const text = textForSite(site);
   return html`<div class="post-meta">
     ${post.publishedAt ? postDate(site, post.publishedAt) : ''}
     ${options.updated && post.publishedAt && isUpdated(site, post.publishedAt, post.updatedAt)
@@ -107,11 +111,11 @@ function postMeta(
 }
 
 /** 記事の一覧。**0 件のときは呼ばない**（空の `ul` に余白だけが残る）。 */
-function postList(site: SiteConfig, posts: readonly PostSummaryView[]): Html {
+function postList(site: SiteConfig, text: Text, posts: readonly PostSummaryView[]): Html {
   return html`<ul class="post-list">
     ${posts.map(
       (post) => html`<li>
-        ${postMeta(site, post)}
+        ${postMeta(site, text, post)}
         <h2><a href="${post.url}">${post.title}</a></h2>
         ${post.description ? html`<p class="post-summary">${post.description}</p>` : ''}
       </li>`,
@@ -133,8 +137,8 @@ export function indexPage(
   context: PageContext,
   posts: readonly PostSummaryView[],
   pagination: Pagination,
+  text: Text,
 ): Promise<string> {
-  const text = textForSite(context.site);
   return layout(
     context,
     {
@@ -160,12 +164,13 @@ export function indexPage(
           ${text.noPosts}
           <a href="${context.urls.admin()}" rel="nofollow">${text.writeFirstPost}</a>
         </p>`
-      : postList(context.site, posts)}
+      : postList(context.site, text, posts)}
     ${pager(pagination, text)}`,
+    text,
   );
 }
 
-export function postPage(context: PageContext, post: PostView): Promise<string> {
+export function postPage(context: PageContext, post: PostView, text: Text): Promise<string> {
   return layout(
     context,
     {
@@ -177,11 +182,12 @@ export function postPage(context: PageContext, post: PostView): Promise<string> 
       adminUrl: post.adminUrl,
     },
     html`<article>
-      ${postMeta(context.site, post, { updated: true })}
+      ${postMeta(context.site, text, post, { updated: true })}
       <h1 class="post-title">${post.title}</h1>
       <!-- 本文は描画済みの HTML。placeholder は配信 URL に解決済み。 -->
       <div class="prose">${raw(post.html)}</div>
     </article>`,
+    text,
   );
 }
 
@@ -190,8 +196,8 @@ export function tagPage(
   tag: TagView,
   posts: readonly PostSummaryView[],
   pagination: Pagination,
+  text: Text,
 ): Promise<string> {
-  const text = textForSite(context.site);
   const label = text.tagPage(tag.name);
   const page = pagination.page > 1 ? `${label} — ${text.page(pagination.page)}` : label;
   return layout(
@@ -200,18 +206,19 @@ export function tagPage(
     html`<h1 class="post-title">${tag.name}</h1>
       ${posts.length === 0
         ? html`<p class="post-summary">${text.noPostsInTag}</p>`
-        : postList(context.site, posts)}
+        : postList(context.site, text, posts)}
       ${pager(pagination, text)}`,
+    text,
   );
 }
 
-export function notFoundPage(context: PageContext): Promise<string> {
-  const text = textForSite(context.site);
+export function notFoundPage(context: PageContext, text: Text): Promise<string> {
   return layout(
     context,
     { page: text.notFoundTitle },
     html`<h1>404</h1>
       <p class="post-summary">${text.notFoundBody}</p>
       <p><a href="${context.urls.index()}">${text.backToIndex}</a></p>`,
+    text,
   );
 }

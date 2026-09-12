@@ -14,7 +14,7 @@ import { computed } from 'vue';
 import { LOCALES, type Locale } from '../../core/locale.ts';
 import { MOUNT } from '../api.ts';
 import { LOGOUT_URL } from '../auth.ts';
-import { LOCALE_LABELS, locale, setLocale, t } from '../i18n.ts';
+import { LOCALE_LABELS, locale, t } from '../i18n.ts';
 import { go } from '../router.ts';
 import { MOUNT_LABEL, SITE } from '../site.ts';
 
@@ -33,10 +33,15 @@ const rows = computed<{ label: string; value: string; mount?: string }[]>(() => 
   { label: t.settings.publicUrl, value: SITE.url, mount: MOUNT_LABEL },
 ]);
 
-/** 選択と `i18n.ts` の繋ぎ。**選んだ時点で覚える**ので、保存のボタンは無い。 */
+/**
+ * 選択と `i18n.ts` の繋ぎ。**選んだ時点で覚える**ので、保存のボタンは無い
+ * （表と `<html lang>` と覚え書きは `i18n.ts` の `watch` が揃える）。
+ */
 const chosen = computed<Locale>({
   get: () => locale.value,
-  set: (next) => setLocale(next),
+  set: (next) => {
+    locale.value = next;
+  },
 });
 </script>
 
@@ -53,7 +58,13 @@ const chosen = computed<Locale>({
       <dt>{{ row.label }}</dt>
       <dd>{{ row.value }}<strong v-if="row.mount">{{ row.mount }}</strong></dd>
     </template>
+  </dl>
 
+  <!-- **注記は表示だけの項目の直後。** 下の言語は変えられるので、あいだに挟んで
+       「ここでは変更できません」が言語にも掛かって読めないようにする。 -->
+  <p class="muted settings-note">{{ t.settings.note }}</p>
+
+  <dl class="settings">
     <dt>{{ t.settings.language }}</dt>
     <dd>
       <select v-model="chosen">
@@ -64,8 +75,6 @@ const chosen = computed<Locale>({
       <p class="muted">{{ t.settings.languageNote }}</p>
     </dd>
   </dl>
-
-  <p class="muted settings-note">{{ t.settings.note }}</p>
 
   <!-- ログアウトできる認証方式のときだけ出る。**素の form で送る** -->
   <!-- （fetch ではないので、押すとページごとログイン画面へ移る）。 -->

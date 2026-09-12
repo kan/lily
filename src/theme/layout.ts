@@ -11,7 +11,7 @@ import { ADMIN_LINK_CLASS, ADMIN_LINK_SCRIPT } from '../core/admin-contract.ts';
 import type { SiteConfig } from '../core/config.ts';
 import type { ImageView, PageContext, Pagination } from '../core/theme.ts';
 import { THEME_INIT, THEME_TOGGLE } from './client.ts';
-import { textForSite } from './text.ts';
+import type { Text } from './text.ts';
 
 export type LayoutOptions = {
   /** ページ名。トップは省略してサイト名だけにする。 */
@@ -58,9 +58,9 @@ export async function layout(
   context: PageContext,
   options: LayoutOptions,
   body: HtmlEscapedString | Promise<HtmlEscapedString>,
+  text: Text,
 ): Promise<string> {
   const { site, urls, canonicalUrl } = context;
-  const text = textForSite(site);
   const title = pageTitle(site.name, options.page);
   const description = options.description ?? site.description;
   const brand = options.brandIsHeading ? 'h1' : 'p';

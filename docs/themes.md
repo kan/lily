@@ -41,6 +41,22 @@ if you want the same properties:
   served to the next. A language with no table falls back to English, so the page always
   renders. `resolveLocale` and `siteLocale` are exported for a theme that keeps the same rule.
 
+## Changing the words without copying the theme
+
+lily ships English and Japanese. **That list is what lily has words for, not a limit on what
+you can serve** — a blog in any other language passes its own:
+
+```ts
+import { createDefaultTheme } from '@kanf/lily/theme';
+
+theme: createDefaultTheme({
+  text: { noPosts: 'Aucun article.', writeFirstPost: 'Écrire le premier' },
+});
+```
+
+What you pass is layered over whatever table the rule above picked, so you can change one
+word or all of them. `defaultTheme` is exactly `createDefaultTheme()` with nothing passed.
+
 Dates are formatted by passing `SiteConfig.timeZone` to `core/date.ts`, and the reader-facing
 form is left to `Intl` via `SiteConfig.lang`. `<time datetime>` stays ISO 8601, so machines
 are unaffected by the display format.

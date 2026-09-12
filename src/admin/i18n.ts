@@ -12,21 +12,17 @@
  * **表は言語ごとに同じ形。** `AdminText` を満たさない表はコンパイルが通らないので、
  * 片方だけ足した文言が残ることはない。
  */
-import { reactive, ref } from 'vue';
-import { resolveLocale, type Locale } from '../core/locale.ts';
+import { reactive, ref, watch } from 'vue';
+import { resolveLocale, resolveLocales, type Locale } from '../core/locale.ts';
 
 export type AdminText = {
   readonly common: {
     readonly save: string;
-    readonly cancel: string;
-    readonly close: string;
     readonly delete: string;
-    readonly back: string;
     readonly openBlog: string;
     readonly toList: string;
     readonly settings: string;
     readonly loading: string;
-    readonly retry: string;
   };
   readonly tags: {
     readonly remove: string;
@@ -158,30 +154,40 @@ export type AdminText = {
  * （管理画面は日付の整形で既に `Intl` を使っている）。
  */
 function monthName(locale: Locale, month: number): string {
-  return new Intl.DateTimeFormat(locale, { month: 'long' }).format(
+  // **`timeZone` を付ける。** UTC で作った日付をこの端末のゾーンで整形すると、
+  // UTC より西では 1 日戻って**前の月の名前**が出る（`America/Los_Angeles` で
+  // 1 月が December になる）。
+  return new Intl.DateTimeFormat(locale, { month: 'long', timeZone: 'UTC' }).format(
     new Date(Date.UTC(2000, month - 1, 1)),
   );
+}
+
+/**
+ * 曜日の名前。**月名と同じく `Intl` に任せる。**
+ *
+ * **日曜始まりで 7 つ。** カレンダーのマス目がその並びで出る（`DateTimeInput`）。
+ * 2000-01-02 が日曜なので、そこから 7 日ぶん数える。
+ */
+function weekdayNames(locale: Locale): readonly string[] {
+  const format = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' });
+  return Array.from({ length: 7 }, (_, day) => format.format(new Date(Date.UTC(2000, 0, 2 + day))));
 }
 
 const en: AdminText = {
   common: {
     save: 'Save',
-    cancel: 'Cancel',
-    close: 'Close',
     delete: 'Delete',
-    back: 'Back',
     openBlog: 'Open the blog',
     toList: 'All posts',
     settings: 'Settings',
     loading: 'Loading…',
-    retry: 'Try again',
   },
   tags: {
     remove: 'Remove',
     add: 'Add a tag',
   },
   datetime: {
-    weekdays: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    weekdays: weekdayNames('en'),
     unset: 'Not set',
     prevMonth: 'Previous month',
     nextMonth: 'Next month',
@@ -208,11 +214,18 @@ const en: AdminText = {
     empty: '0 posts',
     prev: '← Newer',
     next: 'Older →',
-    staleNotice: (count) => `${count} posts were not rendered by this renderer.`,
+    // **1 件のときを分ける。** 再描画が 1 件だけ残る状態は普通に起きるので、
+    // 「1 posts」は必ず誰かの目に触れる。
+    staleNotice: (count) =>
+      count === 1
+        ? 'One post was not rendered by this renderer.'
+        : `${count} posts were not rendered by this renderer.`,
     rerender: 'Render them again',
     rerendering: 'Rendering…',
     rerenderStuck: (remaining) =>
-      `${remaining} are still left and the count stopped falling. Check the Worker's logs.`,
+      remaining === 1
+        ? "One is still left and the count stopped falling. Check the Worker's logs."
+        : `${remaining} are still left and the count stopped falling. Check the Worker's logs.`,
     unresolvedMedia: (posts) => `Posts with image references that do not resolve: ${posts}`,
   },
   editor: {
@@ -308,22 +321,18 @@ const en: AdminText = {
 const ja: AdminText = {
   common: {
     save: '保存',
-    cancel: 'やめる',
-    close: '閉じる',
     delete: '削除',
-    back: '戻る',
     openBlog: 'ブログを開く',
     toList: '一覧へ',
     settings: '設定',
     loading: '読み込み中…',
-    retry: 'やり直す',
   },
   tags: {
     remove: '外す',
     add: 'タグを足す',
   },
   datetime: {
-    weekdays: ['日', '月', '火', '水', '木', '金', '土'],
+    weekdays: weekdayNames('ja'),
     unset: '指定なし',
     prevMonth: '前の月',
     nextMonth: '次の月',
@@ -466,21 +475,36 @@ function initial(): Locale {
   } catch {
     // 読めないだけ。次の手段へ。
   }
-  return resolveLocale(navigator.language);
+  // **並びを順に見る。** 第 1 候補が表に無い言語（`zh-CN` など）でも、
+  // 2 番目に日本語を置いている人には日本語で出す。
+  return resolveLocales(navigator.languages);
 }
 
 /** いま選ばれている言語。設定画面の選択に繋ぐ。 */
+/** いま選ばれている言語。**これを書き換えれば、下の `watch` が残りを揃える。** */
 export const locale = ref<Locale>(initial());
 
 /** 画面に出す表。**差し替えると画面が追随する**ので、読み込み直しは要らない。 */
 export const t = reactive<AdminText>({ ...TABLES[locale.value] });
 
-export function setLocale(next: Locale): void {
-  locale.value = next;
+// 読み込んだ時点の言語を `<html lang>` に入れる。**入口 HTML は `lang="ja"` で
+// 焼かれている**ので、ここで直さないと英語の画面が日本語だと名乗り続ける
+// （読み上げと、ブラウザの「翻訳しますか」に出る）。
+document.documentElement.lang = locale.value;
+
+/**
+ * 言語が変わったら、表と `<html lang>` と覚え書きを揃える。
+ *
+ * **`locale` を書き換える経路が 1 本しかない**ので、選択欄だけ変わって文言が
+ * 元のまま、という状態にならない。**最初の 1 回では走らせない** —— 起動時に
+ * 覚えてしまうと、ブラウザの言語を変えた人に古い選択が残り続ける。
+ */
+watch(locale, (next) => {
   Object.assign(t, TABLES[next]);
+  document.documentElement.lang = next;
   try {
     localStorage.setItem(STORAGE_KEY, next);
   } catch {
     // 覚えられないだけ。この画面のあいだは選んだ言語で出る。
   }
-}
+});

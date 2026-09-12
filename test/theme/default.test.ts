@@ -10,7 +10,7 @@ import {
   setStubUser,
 } from '../routes/helpers.ts';
 import { createLily } from '../../src/core/app.ts';
-import { defaultTheme } from '../../src/theme/index.ts';
+import { createDefaultTheme, defaultTheme } from '../../src/theme/index.ts';
 
 /**
  * 参照実装（`blog/src/site/`）から写したときに消し忘れそうな固有名詞。
@@ -211,6 +211,27 @@ describe('標準テーマ', () => {
     const html = await (await mixed.fetch(new Request(`${ROOT_SITE}/`), env)).text();
     expect(html).toContain('No posts yet.');
     expect(html).toContain('<html lang="ja">');
+  });
+
+  /**
+   * **lily が表を持っていない言語は、テーマを写さずに出せる。** 表を選ぶ規則
+   * （`uiLang` → `lang` → 英語）はそのままで、上から重ねる形にしてある。
+   */
+  it('文言は設定から差し替えられる', async () => {
+    const french = createLily({
+      site: { ...ROOT_SITE_CONFIG, lang: 'fr' },
+      mountPath: '/',
+      theme: createDefaultTheme({
+        text: { noPosts: 'Aucun article.', writeFirstPost: 'Écrire le premier' },
+      }),
+      auth: () => ({ name: 'stub', authenticate: async () => ({ ok: false, reason: 'x' }) }),
+    });
+    const html = await (await french.fetch(new Request(`${ROOT_SITE}/`), env)).text();
+    expect(html).toContain('Aucun article.');
+    expect(html).toContain('Écrire le premier');
+    // **渡さなかったものは表のまま。** `fr` の表は無いので英語に落ちている。
+    expect(html).toContain('>RSS<');
+    expect(html).toContain('<html lang="fr">');
   });
 
   it('読めない lang でもページを落とさない', async () => {

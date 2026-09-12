@@ -83,6 +83,10 @@ export {
  * 画面の文言の言語。**テーマを写した deployment も同じ規則で選べる**ように出す
  * （`SiteConfig.uiLang`、無ければ `lang`）。読み手の `Accept-Language` で選ばない
  * 理由は `core/locale.ts`。
+ *
+ * **`LOCALES` は「lily が言葉を持っている言語」で、拡張点ではない。** 別の言語で
+ * 出したいなら、言葉はテーマが持つ（`createDefaultTheme({ text })`、または自前の
+ * テーマ）。
  */
 export {
   DEFAULT_LOCALE,

@@ -102,10 +102,13 @@ type LoginText = {
   readonly title: string;
   readonly password: string;
   readonly signIn: string;
-  readonly secretNamed: (name: string) => string;
-  readonly secret: string;
-  readonly howNamed: (name: string) => string;
-  readonly how: string;
+  /**
+   * secret の呼び方と直し方。**名前は分かっているときだけ受ける** —— core は
+   * deployment が何という名前で持っているか知らないので、`passwordAuth` に
+   * 渡されなければ名前を出さない。
+   */
+  readonly secret: (name?: string) => string;
+  readonly how: (name?: string) => string;
   readonly tooShort: (secret: string, minLength: number, how: string) => string;
   readonly unset: (secret: string, minLength: number, how: string) => string;
 };
@@ -115,12 +118,11 @@ const TEXTS: Record<Locale, LoginText> = {
     title: 'Sign in',
     password: 'Password',
     signIn: 'Sign in',
-    secretNamed: (name) => `the password secret (<code>${name}</code>)`,
-    secret: 'the password secret',
-    howNamed: (name) =>
+    secret: (name) =>
+      name === undefined ? 'the password secret' : `the password secret (<code>${name}</code>)`,
+    how: (name) =>
       'in the Cloudflare dashboard under Settings → Variables and Secrets, or with ' +
-      `<code>npx wrangler secret put ${name}</code>`,
-    how: 'in the Cloudflare dashboard under Settings → Variables and Secrets, or with <code>npx wrangler secret put</code>',
+      `<code>npx wrangler secret put${name === undefined ? '' : ` ${name}`}</code>`,
     tooShort: (secret, minLength, how) =>
       `The password that is set is too short, so the admin UI cannot be opened. Replace ${secret} ` +
       `with one of ${minLength} characters or more — ${how} — and deploy again. Saving the secret ` +
@@ -134,12 +136,11 @@ const TEXTS: Record<Locale, LoginText> = {
     title: 'ログイン',
     password: 'パスワード',
     signIn: 'ログイン',
-    secretNamed: (name) => `パスワードの secret（<code>${name}</code>）`,
-    secret: 'パスワードの secret',
-    howNamed: (name) =>
-      'Cloudflare の dashboard なら Settings → Variables and Secrets、' +
-      `手元からなら <code>npx wrangler secret put ${name}</code>`,
-    how: 'Cloudflare の dashboard なら Settings → Variables and Secrets、手元からなら <code>npx wrangler secret put</code>',
+    secret: (name) =>
+      name === undefined ? 'パスワードの secret' : `パスワードの secret（<code>${name}</code>）`,
+    how: (name) =>
+      'Cloudflare の dashboard なら Settings → Variables and Secrets、手元からなら ' +
+      `<code>npx wrangler secret put${name === undefined ? '' : ` ${name}`}</code>`,
     tooShort: (secret, minLength, how) =>
       `設定されたパスワードが短すぎるので、管理画面を開けません。${secret}を ${minLength} ` +
       `文字以上のものに入れ替えて（${how}）、デプロイし直してください。保存するだけでは` +
@@ -176,15 +177,11 @@ function form(options: LoginPageOptions, text: LoginText) {
  * ままだった（#4 で踏んだ）。
  */
 function setupNotice(options: LoginPageOptions, text: LoginText, unusable: 'unset' | 'tooShort') {
-  // 名前が分かっていれば添える。分からないときに `ADMIN_PASSWORD` と決め打つと、
-  // 別の名前で渡している deployment の運用者に嘘の案内をすることになる。
-  //
   // **`<code>` を含むので `raw()` で出す。** 差し込むのは core が持つ文言と
   // `secretName`（`passwordAuth` に渡された設定の値）だけで、外から来た文字列は
   // 1 つも混ざらない。
-  const name = options.secretName;
-  const secret = name === undefined ? text.secret : text.secretNamed(name);
-  const how = name === undefined ? text.how : text.howNamed(name);
+  const secret = text.secret(options.secretName);
+  const how = text.how(options.secretName);
   const notice =
     unusable === 'tooShort'
       ? text.tooShort(secret, options.minLength, how)

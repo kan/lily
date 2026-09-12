@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_LOCALE, LOCALES, resolveLocale, siteLocale } from '../src/core/locale.ts';
+import {
+  DEFAULT_LOCALE,
+  LOCALES,
+  resolveLocale,
+  resolveLocales,
+  siteLocale,
+} from '../src/core/locale.ts';
 import { textFor } from '../src/theme/text.ts';
 
 /**
@@ -19,6 +25,16 @@ describe('文言の言語', () => {
     expect(resolveLocale('fr')).toBe(DEFAULT_LOCALE);
     expect(resolveLocale('')).toBe(DEFAULT_LOCALE);
     expect(resolveLocale(undefined)).toBe(DEFAULT_LOCALE);
+  });
+
+  /**
+   * ブラウザは希望の言語を並びで持つ（`navigator.languages`）。**先頭だけを見ない** ——
+   * 1 番目が表に無い言語の人に、2 番目に置いた言語があっても英語で出してしまう。
+   */
+  it('候補の並びは、表のあるものが最初に見つかるまで見る', () => {
+    expect(resolveLocales(['zh-CN', 'ja-JP', 'en'])).toBe('ja');
+    expect(resolveLocales(['fr', 'de'])).toBe(DEFAULT_LOCALE);
+    expect(resolveLocales([])).toBe(DEFAULT_LOCALE);
   });
 
   /**
