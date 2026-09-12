@@ -1,0 +1,48 @@
+version: 2
+
+# PR は `workflows/ci.yml` の pull_request トリガーが拾う（typecheck + emit +
+# 実 workerd の test）ので、壊れる更新はマージ前に落ちる。
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 5
+    ignore:
+      # TypeScript 7.0 はネイティブ (Go) 実装で typescript/lib/tsc を公開しない
+      # ため、それを require する vue-tsc (Volar) が起動できず、typecheck が
+      # ERR_PACKAGE_PATH_NOT_EXPORTED で落ちる。Volar が使えるプログラマティック
+      # API は TS 7.1 で安定予定なので、7.0.x だけを無視して 7.1 の PR は
+      # 受け取る (可否は CI が判定する)。
+      - dependency-name: typescript
+        versions: ['7.0.x']
+      # vitest 5 は @cloudflare/vitest-plugin の peer (vitest@^4.1.0) と衝突し、
+      # npm ci が ERESOLVE で落ちる。テストは plugin の workerd プールで動いて
+      # いるので、plugin を捨てて vitest だけ上げる選択肢は無い。
+      - dependency-name: vitest
+        versions: ['5.x']
+    groups:
+      npm-minor-patch:
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: deps
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Asia/Tokyo
+    groups:
+      github-actions:
+        patterns:
+          - '*'
+    commit-message:
+      prefix: ci

@@ -1,0 +1,28 @@
+{
+  // 管理画面は DOM を触るので、Workers ランタイム型とは別のプロジェクトにする。
+  // 同じ tsconfig に入れると Request / Response / caches の型が衝突する。
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+    "types": ["./worker-configuration.d.ts"],
+
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "preserve",
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true
+  },
+  // core/api の型 (LilyApi) を読むので、その依存も含めて見える必要がある。
+  // 実装は `import type` なので成果物には 1 バイトも混ざらない。
+  "include": ["src/admin", "src/core", "vite.config.ts"]
+}

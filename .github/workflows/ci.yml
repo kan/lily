@@ -1,0 +1,36 @@
+name: CI
+
+# **利用側を 1 つも知らない状態で通ること**を見る。テストは実 workerd + 実 D1。
+#
+# **E2E はここに無い。** 公開 URL とフィードが変わっていないことは利用側が
+# 判定する（fushihara.net の `blog/e2e/`）。lily を入れ替えてもあれがそのまま
+# 通ることが、外向きの契約を守れている証拠になる。
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      # **emit を型検査とは別に回す。** `typecheck` は `--noEmit` なので、
+      # emit だけが壊れる状態（`rootDir` の外のファイルを import した等）を通す。
+      # 配るのは emit したものなので、ここで落としておかないと publish で初めて分かる。
+      #
+      # **`build` ではなく `build:lib`。** 管理画面 (`build:admin`) は次の
+      # `npm test` が `pretest` で作るので、`build` にすると vite が 2 回走る。
+      - run: npm run build:lib
+      # 実 workerd + 実 D1。`pretest` が管理画面とテスト用の静的アセットを用意する。
+      - run: npm test

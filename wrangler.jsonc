@@ -1,0 +1,45 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+
+  // **これはテストのための設定で、この Worker をデプロイすることはない。**
+  // lily は npm パッケージであって deployment ではない。ここに書いてあるのは
+  // vitest のプール (`@cloudflare/vitest-plugin`) が workerd を起こすのに要る
+  // バインディングの形と、`wrangler types` が `Env` を生成するための材料だけ。
+  //
+  // 利用側の設定の書き方は `blog/wrangler.jsonc` が参照実装になっている。
+  "name": "lily-test",
+  "main": "./test/worker.ts",
+  "compatibility_date": "2026-08-23",
+
+  // **`database_id` はローカルでは見られない。** miniflare は binding 名しか
+  // 使わないので、テストと `--local` のマイグレーションはこの値が何でも通る。
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "lily-test",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "./migrations"
+    }
+  ],
+
+  // 管理画面のビルド成果物。**ビルドしていないと vitest が動かない**
+  // (`pretest` が走らせる)。
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist",
+    "run_worker_first": true
+  },
+
+  "images": { "binding": "IMAGES" },
+  "r2_buckets": [
+    { "binding": "MEDIA", "bucket_name": "lily-test-media" },
+    { "binding": "BACKUP", "bucket_name": "lily-test-backup" }
+  ],
+
+  // CSS は Worker がバンドルした文字列として配る。**`fallthrough` を付けること。**
+  // 付けないと wrangler の既定ルール (`**/*.txt` `**/*.html` `**/*.sql`) が
+  // まるごと無効になる (利用側の設定でも同じ。`blog/wrangler.jsonc` 参照)。
+  "rules": [
+    { "type": "Text", "globs": ["**/*.css"], "fallthrough": true }
+  ]
+}

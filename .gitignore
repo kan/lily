@@ -1,0 +1,10 @@
+node_modules
+dist
+.wrangler
+
+# wrangler types の生成物（型検査用と emit 用）
+worker-configuration.d.ts
+build-types.d.ts
+
+# npm pack の出力
+*.tgz

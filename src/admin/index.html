@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="robots" content="noindex" />
+    <!-- サイト設定の受け皿。**配信時に core/routes/admin.ts が content を埋める。**
+         ここが空のまま (vite の生成物をそのまま開いたとき) は src/admin/site.ts の
+         既定値に落ちる。 -->
+    <meta name="lily:site" content="" />
+    <!-- ログアウトの口。**認証方式で決まる**ので、これも配信時に埋まる。
+         空のまま（Access のように押す物が無い方式）なら、設定画面にボタンを出さない。 -->
+    <meta name="lily:logout" content="" />
+    <!-- 題も配信時に「<サイト名> - lily」へ差し替わる。これは差し替え前の既定値。 -->
+    <title>lily</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

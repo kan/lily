@@ -1,0 +1,415 @@
+/* 標準テーマの見た目。**このファイル 1 枚で完結する。**
+ *
+ * lily は npm で配られるので、配信するサイトのトークン (fushihara.net の
+ * `shared/tokens.css` のようなもの) を読むことはできない。色もフォントもここに置く。
+ *
+ * 色は `light-dark(ライト値, ダーク値)` で 1 回だけ書く。どちらが使われるかは
+ * `color-scheme` が決めるので、2 つのパレットがずれようがない。 */
+:root {
+  /* 既定はダーク。JS 無しでも OS 設定に従い、明示的な [data-theme] が両方に勝つ。 */
+  color-scheme: dark;
+
+  --bg: light-dark(#F5F5F7, #0A0A0F);
+  --surface: light-dark(#FFFFFF, #1A1A2E);
+  --border: light-dark(#D8D8DE, #444);
+  --border-hover: light-dark(#B0B0BA, #666);
+  --text: light-dark(#1A1A2E, #EAEAEA);
+  --text-muted: light-dark(#6B6B72, #888);
+  --link: light-dark(#C81E4A, #F25570);
+  --link-hover: light-dark(#B81238, #FF6B81);
+  --accent: #E94560;
+
+  --code-bg: light-dark(#E6E6EE, #161622);
+  --code-border: light-dark(#E1E4E8, #2C2C44);
+  --rule: light-dark(#E4E4E9, #2A2A3C);
+  --chip-bg: light-dark(#EDEDF2, #22223A);
+
+  /* **外部フォントを読まない。** npm で配るテーマが第三者へリクエストを出すと、
+   * 利用側の CSP・プライバシー方針・オフライン動作を勝手に決めることになる。
+   * 書体を変えたい deployment はこの 2 行を上書きする。 */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  --measure: 42rem;
+}
+
+:root[data-theme='light'] { color-scheme: light; }
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) { color-scheme: light; }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  /* 見出しへのアンカー移動でヘッダーに潜り込ませない */
+  scroll-padding-top: 2rem;
+}
+
+body {
+  min-height: 100%;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: 1.8;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+a {
+  color: var(--link);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--link-hover);
+  text-decoration: underline;
+}
+
+.wrap {
+  width: 100%;
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+/* === Header / Footer === */
+.site-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 0;
+}
+
+/* サイト名。h1 でも p でも同じ見た目にするので font-size を明示する */
+.site-header .brand {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  min-width: 0;
+}
+
+.site-header .brand a { color: var(--text); }
+.site-header .brand a:hover { color: var(--link); }
+
+.site-header nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: auto;
+  font-size: 0.9rem;
+}
+
+.site-footer {
+  margin-top: 4rem;
+  padding: 2rem 0;
+  border-top: 1px solid var(--rule);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* === Theme toggle ===
+ * アイコンは両方 HTML に置いて CSS で出し分ける。サーバー側では訪問者のテーマが
+ * 分からないので、JS でアイコンを差し込むと一瞬まちがった方が見えてしまう。 */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background-color: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background-color 0.25s ease;
+}
+
+.theme-toggle:hover {
+  color: var(--accent);
+  border-color: var(--border-hover);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* dark 既定なので月を出す。light のときだけ太陽に入れ替える。 */
+.theme-toggle .icon-sun { display: none; }
+.theme-toggle .icon-moon { display: block; }
+
+:root[data-theme='light'] .theme-toggle .icon-sun { display: block; }
+:root[data-theme='light'] .theme-toggle .icon-moon { display: none; }
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) .theme-toggle .icon-sun { display: block; }
+  :root:not([data-theme='dark']) .theme-toggle .icon-moon { display: none; }
+}
+
+/* === Post list === */
+.post-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  margin-top: 2rem;
+}
+
+.post-list h2 {
+  font-size: 1.15rem;
+  line-height: 1.5;
+}
+
+.post-list h2 a { color: var(--text); }
+.post-list h2 a:hover { color: var(--link); }
+
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.post-summary {
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.tag {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+/* タグは一覧へのリンク。丸いチップに下線が出ると収まりが悪いので、
+ * hover では色だけ変える (a:hover は .tag より詳細度が高いので明示が要る)。 */
+a.tag:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* ページ送り。1 ページしか無いときは出ない。 */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 3rem;
+  font-size: 0.9rem;
+}
+
+/* 添え物のテキスト。今はページ送りの「2 / 5」だけが使う。
+ * **クラスを出しているのに規則が無いと、地の文と同じ濃さで出る**（見た目が
+ * 少し違うだけなので、画面を見るまで気付けない）。 */
+.muted { color: var(--text-muted); }
+
+/* === Article === */
+.post-title {
+  margin-top: 1rem;
+  font-size: 1.8rem;
+  line-height: 1.4;
+}
+
+.prose { margin-top: 2.5rem; }
+
+.prose > * + * { margin-top: 1.25rem; }
+
+.prose h2 {
+  margin-top: 2.5rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--rule);
+  font-size: 1.35rem;
+  line-height: 1.5;
+}
+
+.prose h3 {
+  margin-top: 2rem;
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+
+.prose ul, .prose ol { padding-left: 1.5rem; }
+.prose li + li { margin-top: 0.35rem; }
+
+.prose blockquote {
+  padding-left: 1rem;
+  border-left: 3px solid var(--accent);
+  color: var(--text-muted);
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+/* === Link card ===
+ *
+ * 貼った URL を題・説明・サムネのブロックで出す (`core/link-card.ts`)。本文には
+ * 生 HTML で入るので、ここが当たらない環境 (フィードのリーダー) では素の
+ * リンクとして上から絵・題・説明・出典と読める。**その順序を CSS で入れ替えない。** */
+.prose .link-card {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin: 1.5rem 0;
+  padding: 0.9rem;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.prose .link-card:hover { border-color: var(--accent); }
+
+/* 潰れる幅では縦に積む。文字が 2 文字ぶんしか入らない箱にしない。 */
+@media (width < 30rem) {
+  .prose .link-card { flex-direction: column; align-items: stretch; }
+}
+
+.prose .link-card-thumb {
+  flex: 0 0 auto;
+  width: 8.5rem;
+  height: auto;
+  aspect-ratio: 1200 / 630;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+@media (width < 30rem) {
+  .prose .link-card-thumb { width: 100%; }
+}
+
+.prose .link-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.prose .link-card-title {
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* 説明と出典は添え物。**行数で切る**ので、長い説明でもカードの高さが揃う。 */
+.prose .link-card-desc {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.prose .link-card-meta,
+.prose .link-card-site {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* GitHub のカードだけサムネが owner のアバター。正方形なので、横長の枠に入れると
+   顔の上下が切れる。**幅も伸ばさない** (潰れる幅で縦積みになっても、アバターが
+   カード幅いっぱいに広がるのはただの間延び)。上の `width: 100%` より詳細度が
+   高いので、メディアクエリの中で書き直す必要はない。 */
+.prose .link-card-github .link-card-thumb {
+  width: 4rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+}
+
+.prose hr {
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.prose table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.prose th, .prose td {
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--rule);
+  text-align: left;
+}
+
+/* インラインコード。ブロックは Shiki が自前で色を持つので触らない */
+.prose :not(pre) > code {
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: var(--code-bg);
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+/* === Shiki ===
+ * render/highlighter.ts の defaultColor: false により、Shiki は色を直接書かず
+ * --shiki-light / --shiki-dark を各要素に置くだけになる。あとは他の色と同じく
+ * light-dark() に渡せばよく、[data-theme] とメディアクエリのブロックは要らない。
+ * (custom property の var() は要素ごとに解決されるので、span のインライン変数が効く) */
+.prose pre.shiki {
+  /* インラインコードと同じ書体に揃える。指定しないと UA 既定の monospace になる */
+  font-family: var(--font-mono);
+  padding: 1rem;
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
+
+.shiki,
+.shiki span {
+  color: light-dark(var(--shiki-light), var(--shiki-dark));
+  background-color: light-dark(var(--shiki-light-bg), var(--shiki-dark-bg));
+}
+
+/* === 脚注 ===
+ * remark が付ける見出しは sr-only。**このクラスの CSS を書かないと、本文の
+ * 途中に見出しが見えてしまう**（読み上げには要るので消さない）。 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.footnotes {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.footnotes ol { padding-left: 1.5rem; }
+.footnotes p { margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  body, a, .theme-toggle { transition: none; }
+}

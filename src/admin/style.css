@@ -1,0 +1,536 @@
+/* 管理画面の色。**lily の持ち物なので、配信するサイトのトークンを読まない。**
+ *
+ * 出てくる値は fushihara.net の `shared/tokens.css` と同じだが、揃っている必要は
+ * 無い（管理画面は読者に見えないし、別のサイトに lily を載せてもここは変わらない）。
+ * 公開ページの配色はテーマ (`src/site/`) の持ち物で、あちらは今までどおり
+ * 本体サイトと同じトークンを読む。
+ *
+ * `light-dark()` で 1 回だけ書く。どちらが使われるかは `color-scheme` が決めるので、
+ * 2 つのパレットがずれようがない。**管理画面にテーマの切り替えは無い**ので、
+ * `light dark` を宣言して OS 設定にそのまま従う（`index.html` の meta と同じ）。 */
+:root {
+  color-scheme: light dark;
+
+  --bg: light-dark(#F5F5F7, #0A0A0F);
+  --note-bg: light-dark(#FFFFFF, #1A1A2E);
+  --text: light-dark(#1A1A2E, #EAEAEA);
+  --text-muted: light-dark(#6B6B72, #888);
+  --link: light-dark(#C81E4A, #F25570);
+  --accent: #E94560;
+
+  --panel: light-dark(#FFFFFF, #14141F);
+  --border: light-dark(#E1E1E8, #2C2C44);
+  --danger: light-dark(#C0392B, #FF6B6B);
+
+  --font-sans: 'Inter', 'Noto Sans JP', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: 1.7;
+}
+
+button, input, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+a { color: var(--link); }
+
+.wrap { max-width: 72rem; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+
+header.bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+header.bar h1 { font-size: 1.1rem; }
+header.bar .spacer { margin-left: auto; }
+
+button {
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+button:disabled { opacity: 0.5; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.primary:hover:not(:disabled) { color: #fff; opacity: 0.9; }
+button.danger { color: var(--danger); }
+
+input, textarea, select {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+/* 日付と時刻は内容の幅に合わせる。伸ばすと値の右に大きな空白ができて、
+ * そこに何かの欄があるように見える (実際には何も入らない)。 */
+input[type='text'], textarea, select { width: 100%; }
+
+/* === 日時の入力 ===
+ * ネイティブの datetime-local / date は環境によって曜日の欄が付き、そこが空の
+ * まま描かれることがある。見た目を確かめられる形にするため自前で組む。 */
+.datetime { position: relative; margin-top: 0.2rem; }
+
+.datetime .value {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: max-content;
+  padding: 0.35rem 0.5rem 0.35rem 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.datetime .value.on { border-color: var(--accent); color: var(--accent); }
+
+.picker {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  z-index: 20;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.22);
+}
+
+.picker .month {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.picker .month button { width: 1.6rem; height: 1.6rem; padding: 0; }
+
+.picker .grid {
+  display: grid;
+  grid-template-columns: repeat(7, 2rem);
+  gap: 0.1rem;
+}
+
+.picker .weekday {
+  padding: 0.2rem 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-align: center;
+}
+
+.picker .day {
+  height: 1.9rem;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.picker .day.outside { color: var(--text-muted); opacity: 0.45; }
+.picker .day.today { border-color: var(--border); }
+.picker .day.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.picker .day.on:hover { color: #fff; }
+
+.picker .foot { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; }
+.picker .foot input { width: 4.5rem; text-align: center; font-variant-numeric: tabular-nums; }
+
+textarea { resize: vertical; font-family: var(--font-mono); font-size: 0.9rem; }
+
+label { display: block; margin-top: 0.9rem; font-size: 0.85rem; color: var(--text-muted); }
+/* ラベルの文言の下に置く。block にしないと、幅を指定しない入力が文言の横に
+ * 並んで枠からはみ出す。 */
+label > input, label > textarea, label > select { display: block; margin-top: 0.2rem; }
+
+/* === 一覧 === */
+.post-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.post-row .title { font-weight: 600; }
+.post-row .path { color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-mono); }
+.post-row .spacer { margin-left: auto; }
+
+.badge {
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: var(--note-bg);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.badge.published { color: var(--accent); }
+
+.filter { width: auto; padding: 0.25rem 0.5rem; font-size: 0.85rem; }
+
+/* 絞り込みの行。見出しの列に混ぜると窮屈で、どれが検索欄か分からなくなる。 */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.filters .search { flex: 1; min-width: 12rem; width: auto; font-size: 0.85rem; }
+.filters button { font-size: 0.85rem; }
+
+/* 一覧の行に出すタグ。押すとそのタグで絞り込む。 */
+.post-row .chip { border: 0; font-size: 0.75rem; }
+.post-row .chip:hover { color: var(--accent); }
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  font-size: 0.85rem;
+}
+
+/* === 設定 (表示のみ) === */
+.settings {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.1rem 1.25rem;
+  margin-top: 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  font-size: 0.9rem;
+}
+
+.settings dt { color: var(--text-muted); }
+/* 長い URL や説明で表が横に伸びないようにする。 */
+.settings dd { overflow-wrap: anywhere; }
+
+.settings-note { margin-top: 0.8rem; }
+.settings-note code { font-family: var(--font-mono); }
+
+/* ログアウト。認証方式によっては出ない（`admin/auth.ts`）。 */
+.logout { margin-top: 1.6rem; padding-top: 1.2rem; border-top: 1px solid var(--border); }
+.logout p { margin-top: 0.5rem; }
+
+/* === 編集 ===
+ * 上段に記事についての情報、その下に本文とプレビューを並べ、書き終わってから
+ * 触るものを下段に置く。本文とプレビューの縦位置を揃えたいので、高さの変わる
+ * ものを間に挟まない。 */
+.meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1.25rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.meta > label { margin-top: 0.5rem; }
+/* 長いものは全幅。タグと公開日時だけ 2 カラムで並べる。 */
+.meta > label.wide { grid-column: 1 / -1; }
+
+.path-row { display: flex; gap: 0.5rem; margin-top: 0.2rem; }
+.path-row input { flex: 1; }
+
+/* **`minmax(0, 1fr)` にすること。** 素の `1fr` は `minmax(auto, 1fr)` なので、
+ * 折り返せない長い文字列 (URL やリンクカードの題) がプレビュー側にあると、
+ * その列が中身の幅まで広がって**入力欄が潰れる**。 */
+.editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.25rem; margin-top: 1.25rem; }
+.editor > .panel { display: flex; flex-direction: column; min-width: 0; }
+.editor textarea { flex: 1; min-height: 32rem; }
+/* 上と対で要る。列を狭められても、中身が溢れるのではなく折り返るように。 */
+.editor .preview { flex: 1; overflow-y: auto; overflow-wrap: anywhere; }
+
+.panels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-top: 1.25rem; }
+
+@media (max-width: 60rem) {
+  .meta, .editor, .panels { grid-template-columns: 1fr; }
+}
+
+.panel {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.panel h2 { margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-muted); }
+
+/* 似たものをまとめ、グループ の間だけ間を空ける。 */
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem; margin-bottom: 0.4rem; }
+.toolbar .group { display: flex; gap: 0.2rem; }
+
+/* === そのほかの記法 (プルダウン) === */
+.menu-wrap { position: relative; display: flex; }
+.menu-wrap button.on { border-color: var(--accent); color: var(--accent); }
+
+.menu {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  z-index: 10;
+  min-width: 8rem;
+  padding: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.menu li { list-style: none; }
+
+.menu li button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  height: auto;
+  padding: 0.3rem 0.5rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.menu li button:hover { background: var(--note-bg); color: var(--accent); }
+.menu li button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  font-size: 0.75rem;
+}
+
+/* URL を貼った直後だけ、**貼った場所の真下**に出る「カードにする」。
+ * 既定はテキストリンクのままなので、押さなければ何も起きない。
+ * 位置は `caret.ts` が測って `top` / `left` で入る。 */
+.card-popup {
+  position: absolute;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+  white-space: nowrap;
+}
+
+.card-popup button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: auto;
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  background: transparent;
+  font-size: 0.8rem;
+}
+
+.card-popup button:hover:not(:disabled) { background: var(--note-bg); color: var(--accent); }
+.card-popup .close { padding: 0.25rem 0.4rem; color: var(--text-muted); }
+
+/* === タグ === */
+.tag-input {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.2rem;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+.tag-input input {
+  flex: 1;
+  min-width: 8rem;
+  padding: 0.1rem 0.2rem;
+  border: 0;
+  background: transparent;
+}
+
+.tag-input input:focus { outline: none; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.05rem 0.2rem 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: var(--note-bg);
+  font-size: 0.8rem;
+}
+
+.chip button {
+  padding: 0 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.chip button:hover { color: var(--danger); }
+
+.suggest {
+  position: absolute;
+  top: calc(100% + 0.2rem);
+  left: 0;
+  z-index: 10;
+  width: 100%;
+  max-height: 14rem;
+  overflow-y: auto;
+  padding: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.suggest li {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  list-style: none;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.suggest li:hover { background: var(--note-bg); }
+.suggest li .muted { margin-left: auto; }
+
+.dropzone { position: relative; }
+.dropzone.over::after {
+  content: 'ここに落とすとアップロードする';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--accent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+
+.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
+.actions .spacer { margin-left: auto; }
+
+.notice {
+  margin-top: 0.8rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.notice.error { border-color: var(--danger); color: var(--danger); }
+
+.media-list { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.5rem; font-size: 0.85rem; }
+.media-list li { display: flex; align-items: center; gap: 0.5rem; list-style: none; }
+.media-list .name { font-family: var(--font-mono); }
+.media-list .spacer { margin-left: auto; }
+
+.paths { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.4rem; font-size: 0.85rem; }
+.paths li { display: flex; align-items: center; gap: 0.5rem; list-style: none; font-family: var(--font-mono); }
+.paths .spacer { margin-left: auto; }
+
+.muted { color: var(--text-muted); font-size: 0.85rem; }
+
+/* プレビューは公開ページと同じ CSS を当てたいが、管理画面に持ち込むと
+ * 二重管理になる。ここでは最低限の可読性だけ整える。 */
+.preview :is(h1, h2, h3) { margin: 1.2rem 0 0.4rem; line-height: 1.4; }
+.preview > * + * { margin-top: 0.8rem; }
+/* 箇条書きの点が枠の外に出ないよう、字下げを明示する (UA 既定は 40px だが
+ * リセットで padding を 0 にしてあるので、当てないと点が消える)。 */
+.preview :is(ul, ol) { padding-left: 1.5rem; }
+.preview li + li { margin-top: 0.25rem; }
+.preview img { max-width: 100%; height: auto; border-radius: 6px; }
+.preview pre { padding: 0.8rem; border-radius: 6px; overflow-x: auto; font-size: 0.85rem; }
+.preview :not(pre) > code { padding: 0.1rem 0.3rem; border-radius: 4px; background: var(--note-bg); }
+.preview blockquote { padding-left: 0.8rem; border-left: 3px solid var(--accent); color: var(--text-muted); }
+/* リンクカードは公開ページでは横並びの箱になる (blog.css)。ここでは「1 つの
+ * かたまりに見える」ことだけ再現する。細部まで写すと二重管理になる。 */
+.preview .link-card {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.preview .link-card-thumb { flex: 0 0 auto; width: 6rem; height: auto; border-radius: 4px; }
+.preview .link-card-text { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.preview .link-card-title { font-weight: 600; }
+.preview :is(.link-card-desc, .link-card-meta, .link-card-site) { color: var(--text-muted); font-size: 0.8rem; }
+
+.preview table { border-collapse: collapse; }
+.preview :is(th, td) { padding: 0.3rem 0.6rem; border: 1px solid var(--border); }
+
+/* Shiki は色を直接書かず --shiki-light / --shiki-dark を置くだけなので、
+ * 受け取る側が light-dark() に渡す。公開ページ (blog.css) と同じ扱い。
+ * ここを書かないと、プレビューのコードだけ色が付かない。 */
+.preview .shiki,
+.preview .shiki span {
+  color: light-dark(var(--shiki-light), var(--shiki-dark));
+  background-color: light-dark(var(--shiki-light-bg), var(--shiki-dark-bg));
+}
+
+/* === 脚注 ===
+ * remark が付ける見出しは sr-only。**このクラスの CSS を書かないと、本文の
+ * 途中に「脚注」という h2 が見えてしまう**（読み上げには要るので消さない）。 */
+.preview .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.preview .footnotes {
+  /* 公開ページより詰める。並べて見る枠なので 3rem だと間が抜ける。 */
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.preview .footnotes ol { padding-left: 1.5rem; }
+.preview .footnotes p { margin: 0; }

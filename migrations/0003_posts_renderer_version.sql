@@ -1,0 +1,19 @@
+-- 再描画がどれだけ残っているかを数えるための索引。
+--
+-- `renderer_version` を見るクエリは 2 本ある（`core/db/posts.ts`）。
+-- **効くのは数える方だけ。**
+--
+--   countPostsNeedingRender  SCAN posts → **SCAN posts USING COVERING INDEX**
+--   listPostsNeedingRender   SCAN のまま（ORDER BY id + LIMIT なので選ばれない）
+--
+-- 数える方を足したのは管理画面の一覧に「この renderer で描かれていない記事が
+-- N 件ある」を出すため（`GET <mount>/api/rerender`）。**一覧を開くたびに飛ぶ。**
+-- 索引が無いと posts の本体を読むことになり、あそこには body_md と body_html と
+-- いう大きい TEXT が乗っている。covering index なら索引だけで数え切る。
+--
+-- ほとんどの行が同じ値を持つ低カーディナリティの索引だが、ここでやりたいのは
+-- 「値で絞る」ことではなく「小さい木だけを走査する」ことなので、それで困らない。
+--
+-- 索引を足すだけなので、デプロイの前に当てても古いコードは何も壊さない
+-- （migrations は追加のみ、が前提）。
+CREATE INDEX posts_renderer_version ON posts(renderer_version);

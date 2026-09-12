@@ -1,0 +1,51 @@
+name: Publish
+
+# **タグを打ったときだけ npm へ出す。** main への push で自動 publish しないのは、
+# 版を上げる判断とコードを直す判断が別だから（`package.json` の `version` を
+# 上げたコミットに `v0.1.1` を打つ、という 2 手を踏ませる）。
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # **Trusted Publishing (OIDC)。** token を secret に置かない代わりに、npm 側で
+  # 「このリポジトリのこのワークフローからの publish を許す」と登録しておく。
+  # provenance（どのリポジトリのどのワークフローが出したか）も自動で付く。
+  # 同じスコープの @kanf/wema がこの形。
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      # Trusted Publishing は npm 11.5.1 以降にしか無い。
+      - run: npm install -g npm@latest
+      - run: npm ci
+
+      # **タグと `package.json` の版が一致すること。**
+      # ずれたまま出すと、`v0.1.1` のタグで 0.1.0 が publish されて（あるいは
+      # 「同じ版は出せない」で落ちて）、どちらも原因がタグ名から読めない。
+      - name: タグと版の一致を見る
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="v$(node -p 'require("./package.json").version')"
+          if [ "$TAG" != "$version" ]; then
+            echo "タグ ($TAG) と package.json の版 ($version) が違う" >&2
+            exit 1
+          fi
+
+      # publish の前に一通り通す。**`prepack` が `npm run build` を呼ぶ**ので、
+      # 配るもの (dist/lib + dist/admin) はここで作られる。
+      - run: npm run typecheck
+      - run: npm test
+
+      - run: npm publish --access public

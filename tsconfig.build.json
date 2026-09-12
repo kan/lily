@@ -1,0 +1,40 @@
+{
+  // **配る形を作るための設定。** 型検査は `tsconfig.json` の仕事で、こちらは
+  // emit だけを足す（`extends` で継ぐので、検査の厳しさは 1 箇所にある）。
+  //
+  // ソースをそのまま配ると、利用側の tsconfig が lily のソースにも適用され、
+  // lily より厳しい設定の人のところでコンパイルエラーになる（`skipLibCheck` は
+  // `.d.ts` にしか効かない）。だから `.js` + `.d.ts` を出す。
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    // **`sourceMap` と `declarationMap` は足さないこと。** 配るものに `src/` が
+    // 入らないので、出しても参照先の無い地図になる（エディタの「定義へ移動」は
+    // `.d.ts` で足りる）。
+    "rootDir": "src",
+    "outDir": "dist/lib",
+    // **`.ts` 拡張子付きの import（250 箇所近い）を `.js` に書き換えて出す。**
+    // これが無いと `allowImportingTsExtensions` と emit が両立しない。
+    "rewriteRelativeImportExtensions": true,
+    // **型検査 (`tsconfig.json`) とは別の型を読む。** あちらが読む
+    // `worker-configuration.d.ts` には `mainModule: typeof import("./test/worker")`
+    // が入っていて、**それが `test/worker.ts` を emit の対象に引きずり込む**
+    // (`include` にも `exclude` にも関係なく、program に入った `.ts` は全部出る)。
+    // `rootDir` の外なので出力は `dist/` ではなく `test/` に落ち、**ソースの隣に
+    // `.js` と `.d.ts` が湧く。**
+    //
+    // `build-types.d.ts` は `--include-env false` で出した**ランタイム型だけ**の
+    // ファイル。lily は `Env` を 1 箇所も使わない (route の `Env` はどれも
+    // ファイル内の `type Env = { Bindings: LilyBindings }`) ので、これで足りる。
+    // `declare module '*.css'` は `src/css.d.ts` が持っている。
+    "types": ["@cloudflare/vitest-plugin/types", "./build-types.d.ts"]
+  },
+  // **`test/` と `vitest.config.ts` は配らない。** 管理画面 (`src/admin`) も
+  // 別ビルド (vite) の持ち物なので、ここからは出さない。
+  //
+  // `build-types.d.ts` は `wrangler types` の生成物 (git 管理外)。`.d.ts` は
+  // emit されないので `rootDir` の外にあってよい。
+  "include": ["src", "build-types.d.ts"],
+  "exclude": ["src/admin"]
+}
