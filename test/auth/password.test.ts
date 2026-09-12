@@ -222,6 +222,23 @@ describe('passwordAuth の設定が足りないとき', () => {
     expect(body).not.toContain('not configured yet');
   });
 
+  /**
+   * **直し方まで出す。** ここを読んでいるのは「値は入れたのに開かない」人なので、
+   * どこで入れ直すのかと、**入れ直すだけでは足りない**ことの両方が要る
+   * （dashboard で保存しても、動いている Worker は次のデプロイまで古い値のまま）。
+   */
+  it('secret の入れ直し方と、デプロイし直しが要ることを出す', async () => {
+    const named = passwordAuth({
+      password: TOO_SHORT,
+      secretName: 'ADMIN_PASSWORD',
+      failureDelayMs: 0,
+    });
+    const body = await screen(named);
+    expect(body).toContain('wrangler secret put ADMIN_PASSWORD');
+    expect(body).toContain('deploy');
+    expect(body).toContain('not enough on its own');
+  });
+
   /** core は deployment が何という名前で secret を持っているか知らない。 */
   it('secret の名前は、渡されたときだけ出す', async () => {
     expect(await screen(empty)).not.toContain('ADMIN_PASSWORD');

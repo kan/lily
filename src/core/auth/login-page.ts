@@ -104,21 +104,37 @@ function form(options: LoginPageOptions) {
   </form>`;
 }
 
-/** 設定が足りないときの案内。**運用者向け**で、認証の失敗とは別物。 */
+/**
+ * 設定が足りないときの案内。**運用者向け**で、認証の失敗とは別物。
+ *
+ * **直し方まで書く。** ここを読んでいる人は、たいてい「値は入れたのに開かない」
+ * 状態にいる（Deploy to Cloudflare の画面は短いパスワードもそのまま受け取る）。
+ * どこで入れ直すのかと、**入れ直すだけでは足りない**ことの両方を出す ——
+ * dashboard で secret を保存しても、動いている Worker は次のデプロイまで古い値の
+ * ままだった（#4 で踏んだ）。
+ */
 function setupNotice(options: LoginPageOptions, unusable: 'unset' | 'tooShort') {
   // 名前が分かっていれば添える。分からないときに `ADMIN_PASSWORD` と決め打つと、
   // 別の名前で渡している deployment の運用者に嘘の案内をすることになる。
   const secret = options.secretName
     ? html`the password secret (<code>${options.secretName}</code>)`
     : html`the password secret`;
+  const how = options.secretName
+    ? html`in the Cloudflare dashboard under Settings → Variables and Secrets, or with
+        <code>npx wrangler secret put ${options.secretName}</code>`
+    : html`in the Cloudflare dashboard under Settings → Variables and Secrets, or with
+        <code>npx wrangler secret put</code>`;
 
   return unusable === 'tooShort'
     ? html`<p class="error">
-        The password that is set is too short, so the admin UI cannot be opened. Set
-        ${secret} to ${options.minLength} characters or more and deploy again.
+        The password that is set is too short, so the admin UI cannot be opened. Replace
+        ${secret} with one of ${options.minLength} characters or more — ${how} — and deploy
+        again. Saving the secret is not enough on its own: the Worker that is running keeps
+        the old value until the next deployment.
       </p>`
     : html`<p class="error">
-        This deployment is not configured yet. The administrator has to set ${secret}.
+        This deployment is not configured yet. The administrator has to set ${secret} to a
+        password of ${options.minLength} characters or more — ${how} — and deploy again.
       </p>`;
 }
 

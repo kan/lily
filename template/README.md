@@ -15,6 +15,12 @@ the R2 bucket from the bindings in `wrangler.jsonc`, asks for the secrets listed
 `.dev.vars.example` (that is where the `ADMIN_PASSWORD` field comes from), and runs
 `npm run deploy` — which applies lily's migrations and then deploys.
 
+**Give `ADMIN_PASSWORD` 12 characters or more.** Nothing on the deploy screen checks it, and
+a shorter one is refused afterwards: the site serves fine, but `/admin/` opens onto a notice
+instead of a login form. Getting out of that takes two steps — replace the secret (Settings →
+Variables and Secrets on the Worker, or `npx wrangler secret put ADMIN_PASSWORD`) **and deploy
+again**, because the Worker that is running keeps the old value until the next deployment.
+
 **A Cloudflare account is all it needs.** Nothing has to be created beforehand, and no
 resource ID is ever pasted into the repository: the bindings are referenced by name.
 

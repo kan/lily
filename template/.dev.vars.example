@@ -9,9 +9,15 @@
 # `localhostOnly` adapter, which only passes when the host is localhost or 127.0.0.1,
 # and therefore never passes on a real domain.
 
-# The admin password. **12 characters or more** — anything shorter is refused, because
-# the only defence against brute force is a delay on failure. Replacing it also voids
-# every login cookie already handed out.
+# The admin password. **Use 12 characters or more.**
+#
+# Anything shorter is refused outright — the only defence against brute force here is a
+# delay on failure, so a short password would be protected by nothing. **Nothing checks
+# this while you type**: the deploy screen takes whatever you give it, and the admin UI
+# then refuses to open. Getting out of that means replacing the secret **and deploying
+# again** — saving it alone leaves the running Worker on the old value.
+#
+# Replacing it also voids every login cookie already handed out.
 ADMIN_PASSWORD=
 
 # Announcing posts on Bluesky (optional). **Used only when both are set**; with either

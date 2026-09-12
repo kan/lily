@@ -144,8 +144,20 @@ export function indexPage(
     // **0 件のときは一覧そのものを出さない。** 空の `ul` にも余白が付くので、
     // 文言の下に理由の分からない隙間が残る（記事が 1 本も無いのは、標準テーマが
     // 一番よく見られる状態）。
+    //
+    // **代わりに管理画面への導線を出す。** 立ち上げた直後の人は URL を知らず、
+    // ヘッダの Admin は**一度でも管理画面を開いた端末**にしか出ない（cookie の
+    // 目印を見るため）ので、その人には出ない。記事が 0 件の一覧は、たいてい
+    // 立ち上げた本人が最初に見る画面なので、ここだけは常に出す。
+    //
+    // **守りは変わらない。** `<mount>/admin/` は core が持つ固定の route で、
+    // 秘密ではない（隠していたのは読み手の邪魔にしないためで、記事が 1 本も
+    // 無いうちは読み手もいない）。
     html`${posts.length === 0
-      ? html`<p class="post-summary">${TEXT.noPosts}</p>`
+      ? html`<p class="post-summary">
+          ${TEXT.noPosts}
+          <a href="${context.urls.admin()}" rel="nofollow">${TEXT.writeFirstPost}</a>
+        </p>`
       : postList(context.site, posts)}
     ${pager(pagination)}`,
   );

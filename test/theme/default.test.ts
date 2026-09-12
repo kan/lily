@@ -163,6 +163,24 @@ describe('標準テーマ', () => {
     expect(html).not.toContain('class="post-list"');
   });
 
+  /**
+   * **立ち上げた直後の人は管理画面の URL を知らない。** ヘッダの Admin は
+   * 一度でも管理画面を開いた端末にしか出ない（cookie の目印を見る）ので、
+   * その人には出ない。記事が 0 件の一覧は本人が最初に見る画面なので、
+   * ここだけは cookie に関係なく出す。
+   */
+  it('記事が 0 件のときだけ、管理画面への導線を隠さずに出す', async () => {
+    setStubUser(null);
+    const empty = await indexHtml();
+    expect(empty).toMatch(/<a href="\/admin\/"[^>]*>Write the first one</);
+
+    // **1 本でもあれば出さない。** 読み手の画面に管理へのリンクを置かない
+    // （ヘッダの hidden なリンクは従来どおり cookie 次第）。
+    await seedPost({ path: 'start-blog' });
+    const withPost = await indexHtml();
+    expect(withPost).not.toContain('Write the first one');
+  });
+
   it('読めない lang でもページを落とさない', async () => {
     // `lang` は deployment の設定。`en_US` のような書き方は
     // `Intl.DateTimeFormat` が throw するので、日付のある全ページが 500 になりうる。

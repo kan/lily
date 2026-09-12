@@ -19,6 +19,8 @@ export const TEXT = {
   switchToLight: 'Switch to light theme',
   switchToDark: 'Switch to dark theme',
   noPosts: 'No posts yet.',
+  /** 記事が 1 本も無いときだけ出す、管理画面への導線。 */
+  writeFirstPost: 'Write the first one',
   noPostsInTag: 'No posts with this tag yet.',
   draft: 'draft',
   updatedPrefix: 'Updated ',
