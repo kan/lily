@@ -80,6 +80,21 @@ template だけ。**フォーマッタは入れていない**ので、整形の�
   衝突して `npm ci` が ERESOLVE で落ちる。テストはあのプールで動いているので、
   plugin を捨てる選択肢は無い
 
+## リポジトリの設定（GitHub 側。repo には無い）
+
+issue #8 で入れたもの。**設定はコードに無い**ので、ここに何を ON にしたかだけ残す
+（wema / roji と同じ形 + ruleset と CodeQL）。
+
+- Dependabot の alert と security update、private vulnerability reporting、
+  secret scanning と push protection。secret scanning の追加オプション
+  （non-provider patterns / validity checks）は OFF
+- ruleset `protect-main`: 既定ブランチの削除と force push だけを禁じる。
+  **PR は強制しない**（このリポジトリは PR 運用ではなく main へ直接 push）
+- code scanning は CodeQL の既定セットアップ（`actions` と `javascript-typescript`）
+- Actions の `GITHUB_TOKEN` は既定 read。書き込みが要るワークフローは自分で宣言する
+  （`publish.yml` の `id-token: write`）
+- 報告の窓口と、何を守ると言っているか / 言っていないかは `SECURITY.md`
+
 ## 踏みやすい穴
 
 - **`exports` が指すのは `dist/lib`。** `file:` で参照している利用側から見ると、

@@ -21,6 +21,8 @@ routes, the database schema, a prebuilt admin UI and a default theme.
   rendering, link cards, the admin API and UI, announcements, production wiring, test policy.
 - **Working on lily itself: [`CONTRIBUTING.md`](./CONTRIBUTING.md)** — commands, layout, how
   the two builds fit together.
+- **Found a security hole: [`SECURITY.md`](./SECURITY.md)** — report it privately, not as an
+  issue. That file also says what lily does and does not claim to protect.
 
 > **Setup is being reworked.** [#7](https://github.com/kan/lily/issues/7) adds
 > `npx lily init`, and [#3](https://github.com/kan/lily/issues/3) adds a *Deploy to
