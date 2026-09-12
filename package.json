@@ -1,6 +1,6 @@
 {
   "name": "@kanf/lily",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A small CMS for Cloudflare Workers, with D1 as the source of truth. Runs on Worker + D1 + R2 alone, and exports your posts as portable Markdown.",
   "type": "module",
   "license": "ISC",

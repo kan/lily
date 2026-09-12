@@ -16,9 +16,9 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "typecheck": "wrangler types && tsc --noEmit"
   },
-  "//dependencies": "CMS 本体。管理画面もマイグレーションも同梱されているので、これ 1 つで足りる",
+  "//dependencies": "CMS 本体。管理画面もマイグレーションも lily-assets も同梱されているので、これ 1 つで足りる",
   "dependencies": {
-    "@kanf/lily": "^0.1.0"
+    "@kanf/lily": "^0.2.0"
   },
   "devDependencies": {
     "typescript": "^6.0.3",
