@@ -26,11 +26,13 @@ const noUnusedVars = [
 
 export default defineConfig(
   globalIgnores([
-    'dist/**',
-    '.wrangler/**',
-    // どちらも wrangler の生成物（git 管理外）。
-    'worker-configuration.d.ts',
-    'build-types.d.ts',
+    '**/dist/**',
+    '**/.wrangler/**',
+    // どちらも wrangler の生成物（git 管理外）。**`**/` を付ける** ——
+    // `template/` でも `wrangler types` が走るので、根のものだけ外しても
+    // あちらが残る。
+    '**/worker-configuration.d.ts',
+    '**/build-types.d.ts',
   ]),
 
   // ビルドと開発の道具。Node で走る素の JS。

@@ -33,16 +33,19 @@
     "./test-support": "./dist/lib/test-support.js",
     "./package.json": "./package.json"
   },
-  "//bin": "静的アセットの合流 (利用側の public + lily の dist/admin)。場所を知っているのは lily なので、利用側に同じコピー処理を書かせない。素の .mjs にしてあるのは、配るもののうちこれだけが Node で走るため (dist/lib は Workers 向けの emit)",
+  "//bin": "lily は入口 (init が雛形を作る)。**名前がパッケージ名と同じなのは npx のため** —— `npx @kanf/lily init` は、スコープを外した名前と同じ bin を選ぶ (npm には別人の `lily` がいるので `npx lily` は使えない)。lily-assets は静的アセットの合流 (利用側の public + dist/admin) で、場所を知っているのが lily だから利用側に書かせない。どちらも素の .mjs なのは、配るもののうちこれだけが Node で走るため (dist/lib は Workers 向けの emit)",
   "bin": {
+    "lily": "./bin/lily.mjs",
     "lily-assets": "./bin/lily-assets.mjs"
   },
-  "//files": "migrations は利用側の wrangler.jsonc が migrations_dir で直接指す (コピーしない)。dist/lib が配る本体、dist/admin はビルド済みの管理画面、bin は利用側のビルドが呼ぶコマンド",
+  "//files": "migrations は利用側の wrangler.jsonc が migrations_dir で直接指す (コピーしない)。dist/lib が配る本体、dist/admin はビルド済みの管理画面、bin は利用側のビルドが呼ぶコマンド、template は `lily init` が書き出す雛形。**雛形のロックは配らない** —— publish の時点では 1 つ前の版を指しているので、init が package.json だけ今の版に書き換えると噛み合わない (利用側は npm install で解決する)",
   "files": [
     "dist/lib",
     "migrations",
     "dist/admin",
-    "bin"
+    "bin",
+    "template",
+    "!template/package-lock.json"
   ],
   "scripts": {
     "//build": "配るものを 2 つとも作る。管理画面 (vite → dist/admin) と本体 (tsc → dist/lib)。publish 前に prepack が走らせる",
@@ -52,7 +55,8 @@
     "build:lib": "npm run types:build && node scripts/clean-lib.mjs && tsc -p tsconfig.build.json && node scripts/copy-lib-assets.mjs",
     "//build:lib:watch": "利用側 (file: 依存) で試しながら lily を直すとき用。exports が dist/lib を指すので、src を直しただけでは向こうに届かない。**build:lib を呼ばず前後の手だけ並べてある** —— あれを挟むと tsc のフルビルドが 2 回走る (build:lib の 1 回 + watch の初回)。**style.css を直したときは build:lib を回すこと** (tsc の watch は .css を見ない)",
     "build:lib:watch": "npm run types:build && node scripts/clean-lib.mjs && node scripts/copy-lib-assets.mjs && tsc -p tsconfig.build.json --watch",
-    "prepack": "npm run build",
+    "//prepack": "配るものを作る。build に加えて、雛形の .gitignore を「npm が落とさない名前」で複製する (理由は scripts/pack-template.mjs)",
+    "prepack": "npm run build && node scripts/pack-template.mjs",
     "//pretest": "テストは src を直接読むので dist/lib は要らない。実 workerd の ASSETS バインディングを叩くぶん、管理画面と静的アセットは dist/ に要る",
     "pretest": "npm run build:admin && node scripts/test-assets.mjs",
     "test": "vitest run",

@@ -37,3 +37,25 @@ jobs:
       - run: npm run build:lib
       # 実 workerd + 実 D1。`pretest` が管理画面とテスト用の静的アセットを用意する。
       - run: npm test
+
+      # **`lily init` が作った木が、その版の lily で通ること。**
+      #
+      # init は `config.ts` / `wrangler.jsonc` / `package.json` の行を名指しで
+      # 書き換える。見つからなければ落ちるようにしてあるが、**誰も init を
+      # 回さないと publish まで気付けない。** 書けたかだけを見ても足りない ——
+      # 構文として壊れた値を埋めても、型検査まで行かないと分からない。
+      #
+      # **配る形（`npm pack`）を入れて確かめる。** `npm install @kanf/lily` だと
+      # publish 済みの版に当たるので、いま直したものを検証できない。`prepack` が
+      # 走るので、雛形の `gitignore` もこの経路で作られる。
+      #
+      # CLAUDE.md に書いてある手作業（pack → install → build && typecheck）と
+      # 同じことを、init の出力に対して回している。
+      - name: lily init の出力が通ることを見る
+        run: |
+          npm pack --pack-destination "$RUNNER_TEMP"
+          node bin/lily.mjs init "$RUNNER_TEMP/init-smoke" --yes --no-install
+          cd "$RUNNER_TEMP/init-smoke"
+          npm install --no-audit --no-fund "$RUNNER_TEMP"/kanf-lily-*.tgz
+          npm run build
+          npm run typecheck

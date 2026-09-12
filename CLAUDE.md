@@ -109,9 +109,15 @@ issue #8 で入れたもの。**設定はコードに無い**ので、ここに�
 - **利用側に写させない。** 管理画面の場所も、ビルドできているかの判定も、`dist/lib` の
   鮮度も lily の都合なので、`bin/lily-assets.mjs`（パッケージに入る）が持つ。
   利用側の `package.json` に書くのは `"build": "lily-assets dist public"` だけ
-- **`template/` は利用側の最小構成**（npm には入らない）。lily を直したら、ここが
-  まだ通るかを見る。確かめ方は `npm pack` → 別のディレクトリで `npm install <tgz>` →
-  `npm run build && npm run typecheck && npx wrangler deploy --dry-run`
+- **`template/` は利用側の最小構成**で、**パッケージにも入る**（`npx @kanf/lily init`
+  がここから書き出すため。ロックだけ `files` の否定パターンで外してある）。lily を
+  直したら、ここがまだ通るかを見る。確かめ方は `npm pack` → 別のディレクトリで
+  `npm install <tgz>` → `npm run build && npm run typecheck && npx wrangler deploy --dry-run`
+  - **init が埋める場所は `bin/lily.mjs` が名指ししている**（`replaceOnce`）。
+    雛形の `config.ts` / `wrangler.jsonc` / `package.json` のその行を触ったら、
+    あちらも直す。見つからなければ落ちるので、黙って既定値のまま出ることはない
+  - **`npx lily init` は使えない。** npm に別人の `lily` がいる。案内するのは
+    `npx @kanf/lily init`（npx はスコープを外した名前と同じ bin を選ぶ）
   - **Deploy to Cloudflare のボタンが指しているのはここ**
     （`.../lily/tree/main/template`）。Cloudflare はこのディレクトリを新しい repo の
     root として扱うので、**中だけで完結していること**（外のファイルを参照しない）

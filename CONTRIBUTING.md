@@ -50,11 +50,13 @@ exported from it needs a thought about who is importing it.
 
 ```
 migrations/   D1 migrations, plain SQL. The only definition of the schema
-bin/          **Ships.** lily-assets: merges a consumer's public/ and the prebuilt admin
-              UI into one directory. Plain .mjs because it runs on Node, unlike dist/lib
-template/     A minimal consumer project (does not ship on npm). What the Deploy to
-              Cloudflare button copies, and what a new blog starts from. Its
-              package-lock.json is committed, because the button installs with npm ci
+bin/          **Ships.** lily: `npx @kanf/lily init` writes a new blog from template/.
+              lily-assets: merges a consumer's public/ and the prebuilt admin UI into one
+              directory. Plain .mjs because they run on Node, unlike dist/lib
+template/     A minimal consumer project. **Ships too** (init copies it from the package,
+              so a scaffolded blog matches the lily that made it), except its
+              package-lock.json — that one is committed for the Deploy to Cloudflare
+              button, which installs with npm ci from GitHub
 src/
   index.ts    The public API. Consumers import nothing else
   core/       The CMS itself (knows nothing site-specific)

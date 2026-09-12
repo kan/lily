@@ -17,10 +17,12 @@
  * 利用側に Vue のツールチェインは要らない。
  */
 import { cp, mkdir, rm, stat } from 'node:fs/promises';
-import { dirname, join, relative, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { join, relative, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { failWith, message, packageRoot } from './util.mjs';
 
-const lily = dirname(dirname(fileURLToPath(import.meta.url))); // `<パッケージ>/bin/` の 1 つ上。
+const lily = packageRoot(import.meta.url);
+const fail = failWith('lily-assets');
 
 const [out, ...sources] = process.argv.slice(2);
 if (out === undefined) fail('usage: lily-assets <out-dir> [source-dir...]');
@@ -111,11 +113,3 @@ async function isDirectory(path) {
   return (await statOrNull(path))?.isDirectory() ?? false;
 }
 
-function message(error) {
-  return error instanceof Error ? error.message : String(error);
-}
-
-function fail(reason) {
-  console.error(`lily-assets: ${reason}`);
-  process.exit(1);
-}

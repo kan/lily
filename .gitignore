@@ -8,3 +8,6 @@ build-types.d.ts
 
 # npm pack の出力
 *.tgz
+
+# prepack が作る、雛形の .gitignore の複製（npm は .gitignore を配らない）
+template/gitignore

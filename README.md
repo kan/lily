@@ -26,12 +26,24 @@ routes, the database schema, a prebuilt admin UI and a default theme.
 
 ## Starting a blog with it
 
+```bash
+npx @kanf/lily init
+```
+
+**Asks what the blog is** — its name, description, author, URL, language, time zone, and
+whether it lives at the root or under a path — and writes a directory with those answers
+already in `src/config.ts`. It also offers to pick the admin password there and then, so the
+length rule is something you hear before you type rather than after you deploy. From there it
+is `npm run dev` locally and `npm run deploy:first` to Cloudflare.
+
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/kan/lily/tree/main/template)
 
-The button copies [`template/`](./template) into a repository of your own, creates the D1
-database and the R2 bucket, asks for an admin password, and deploys. **A Cloudflare account is
-all it takes** — nothing to create beforehand, and no resource ID ever pasted into a config
-file.
+The button is the other way in: it copies [`template/`](./template) into a repository of your
+own, creates the D1 database and the R2 bucket, asks for an admin password, and deploys. **A
+Cloudflare account is all it takes** — nothing to create beforehand, and no resource ID ever
+pasted into a config file. The trade is that the blog comes up with the defaults (`My blog`,
+`https://example.com`) until you edit the repository, so it is the better path for *trying
+lily*, and `init` is the better one for *keeping* a blog.
 
 Copying the directory means creating a repository, so the button asks to install Cloudflare's
 GitHub app — wider than the one repository you end up with, because that repository does not
@@ -40,9 +52,8 @@ entirely by deploying from your machine;
 [`template/README.md`](./template/README.md#what-the-button-asks-of-your-github-account) says
 how.
 
-That same directory is what `npm install && npm run dev` runs locally, and the rest of this
-page explains what is in it. ([#7](https://github.com/kan/lily/issues/7) will add
-`npx lily init` for starting from a prompt instead.)
+Either way you end up with that same directory, and the rest of this page explains what is in
+it.
 
 ## What you get
 
