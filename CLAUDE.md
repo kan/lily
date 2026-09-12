@@ -33,6 +33,49 @@ npm run build     # build:admin（vite → dist/admin）+ build:lib（tsc → di
 npm run db:migrate:local
 ```
 
+lint の設定は無い。型検査は `tsc`（`src` + `test`）と `vue-tsc`（管理画面）の 2 本で、
+`npm run typecheck` が両方を回す。
+
+## コミット前の手順
+
+**コードの変更を含むコミットの前に、次を順に実行する。**
+
+1. `/code-review` —— 実害のあるバグを洗う
+2. `/simplify` —— 重複・冗長・設計の深さを見て直す
+3. `npm run typecheck && npm test`
+4. ユーザーの承認を得てからコミットする
+
+**順番に実行すること。** `/simplify` は修正を適用するので、`/code-review` と並行させると
+衝突する。**ドキュメントだけの変更ならスキップしてよい。**
+
+指摘に対応したら、**意図的に実装を壊して該当テストだけが落ちることを確認する。**
+「通ったはずのテストが実は何も検証していなかった」は、利用側（fushihara.net）で
+何度も起きている。
+
+`/code-review` と `/simplify` のサブエージェントが結果を返さないことがある。その場合は
+待たずに、同じ観点を自分で見て直す。
+
+## テストの作法
+
+- 実 workerd + 実 D1（`@cloudflare/vitest-plugin`）。モックではない
+- **D1 の制約（`STRICT` / `CHECK` / `UNIQUE`）は生 SQL で叩いて確かめる。** query layer
+  越しに見ても、制約が効いているかの検証にならない（`test/db/schema.test.ts`）
+- **テストだけ別実装を持たない。** キーや URL の導出は本体から import する。写すと、
+  決め方を変えた日にテストが「何も検証していない」側へ黙って倒れる
+- **古い成果物に対して通るテストを疑う。** `dist/lib` の鮮度は `scripts/check-fresh.mjs`
+  が見る（利用側が呼ぶ）
+
+## 依存の版を止めてあるところ
+
+理由は `.github/dependabot.yml` にある。**上げようとしない。**
+
+- **typescript は 7.0.x を入れない。** TS 7.0 はネイティブ（Go）実装で
+  `typescript/lib/tsc` を公開せず、それを require する `vue-tsc`（Volar）が
+  `ERR_PACKAGE_PATH_NOT_EXPORTED` で落ちる。7.1 の PR は受け取る（可否は CI が判定する）
+- **vitest は 5.x を入れない。** `@cloudflare/vitest-plugin` の peer（`vitest@^4.1.0`）と
+  衝突して `npm ci` が ERESOLVE で落ちる。テストはあのプールで動いているので、
+  plugin を捨てる選択肢は無い
+
 ## 踏みやすい穴
 
 - **`exports` が指すのは `dist/lib`。** `file:` で参照している利用側から見ると、
@@ -45,7 +88,10 @@ npm run db:migrate:local
 - **`src/index.ts` が境界。** ここに載っていないものは利用側から読まれない前提で動かせる。
   載っているものを変えるときは、利用側のことを考える
 - **`migrations/` がスキーマの正。** 利用側は `node_modules/@kanf/lily/migrations` を
-  `migrations_dir` で直接指す。リリースに入った migration は他人が流すものになる
+  `migrations_dir` で直接指す。リリースに入った migration は他人が本番の D1 に流すものに
+  なるので、**追加のみで書く。** 利用側のデプロイは「マイグレーションが先、`wrangler deploy`
+  が後」なので、列や表を落とすと古いコードが新しいスキーマに当たる時間ができる
+  （落とすときは 2 回のリリースに分ける）
 - **route 名の正は `src/core/routes/fixed.ts`。** ルータ・URL 生成・予約語の 3 者が
   ここを見る。手で並べ直さない
 - `wrangler.jsonc` の `rules` に `fallthrough` を付ける（付けないと既定ルールが全部消える）
