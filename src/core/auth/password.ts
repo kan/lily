@@ -95,12 +95,12 @@ export function passwordAuth(options: PasswordAuthOptions): AuthAdapter {
         ok: false,
         reason:
           unusable === 'unset'
-            ? 'パスワードが未設定'
-            : `パスワードが ${MIN_PASSWORD_LENGTH} 文字未満`,
+            ? 'no password is set'
+            : `the password is shorter than ${MIN_PASSWORD_LENGTH} characters`,
       };
     }
     const cookie = readCookie(request, COOKIE);
-    if (!cookie) return { ok: false, reason: `${COOKIE} が無い` };
+    if (!cookie) return { ok: false, reason: `no ${COOKIE} cookie` };
     return await verifySession(password, cookie);
   };
 
@@ -113,8 +113,8 @@ export function passwordAuth(options: PasswordAuthOptions): AuthAdapter {
   const loginScreen = (context: AuthContext, status: number, message?: string): Response => {
     if (unusable) {
       console.warn(
-        `auth: password のパスワードが使えない (${
-          unusable === 'unset' ? '未設定' : `${MIN_PASSWORD_LENGTH} 文字未満`
+        `auth: the password adapter cannot be used (${
+          unusable === 'unset' ? 'not set' : `shorter than ${MIN_PASSWORD_LENGTH} characters`
         })`,
       );
     }
@@ -170,7 +170,7 @@ export function passwordAuth(options: PasswordAuthOptions): AuthAdapter {
       }
 
       await delay(failureDelayMs);
-      return loginScreen(context, 401, 'パスワードが違います。');
+      return loginScreen(context, 401, 'That password is not right.');
     },
   };
 }

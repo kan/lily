@@ -61,7 +61,7 @@ function displayFormat(site: SiteConfig): Intl.DateTimeFormat {
   try {
     return new Intl.DateTimeFormat(site.lang, options);
   } catch {
-    console.warn(`lily theme: lang を読めないので既定の言語で日付を組む (${site.lang})`);
+    console.warn(`lily theme: unreadable lang, formatting dates in the default locale (${site.lang})`);
     return new Intl.DateTimeFormat(undefined, options);
   }
 }

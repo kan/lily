@@ -98,7 +98,7 @@ async function authenticate<Bindings extends LilyBindings>(
 ): Promise<Response | null> {
   const result = await adapter.authenticate(c.req.raw);
   if (!result.ok) {
-    console.warn(`auth: ${adapter.name} が拒否した (${c.req.path}): ${result.reason}`);
+    console.warn(`auth: ${adapter.name} refused (${c.req.path}): ${result.reason}`);
     return onFailure();
   }
   c.set('user', result.user);

@@ -322,7 +322,7 @@ export function createApi(config: PageConfig) {
         // **記録は残さない。** 投稿できていないのに告知済みにすると、直したあとに
         // もう押せなくなる。
         if (error instanceof BlueskyError) {
-          console.warn(`bluesky: ${error.step} で失敗した (${post.public_id}): ${error.message}`);
+          console.warn(`bluesky: ${error.step} failed (${post.public_id}): ${error.message}`);
           return c.json(...apiError('bluesky-failed', error.message));
         }
         throw error;
@@ -333,7 +333,7 @@ export function createApi(config: PageConfig) {
       // （消すのは Bluesky 側でしかできず、記録が消えると辿れなくなる）。
       if (!(await setBlueskyUri(db, post.id, announced.uri))) {
         console.warn(
-          `bluesky: 告知が競合した。二重に投稿している (${post.public_id}): ${announced.uri}`,
+          `bluesky: two announcements raced, so this post was posted twice (${post.public_id}): ${announced.uri}`,
         );
       }
       const fresh = (await getPostByPublicId(db, post.public_id)) ?? post;
@@ -683,7 +683,7 @@ async function cardThumb(
       // **R2 の失敗で告知を落とさない。** ここは絵を選ぶだけの処理なので、
       // 読めなければ共通の 1 枚に落ちればよい（`ogpThumb` と同じ扱い）。
       console.warn(
-        `bluesky: OGP の添付を読めないので共通の絵にする (${ogp.r2_key}): ${String(error)}`,
+        `bluesky: cannot read the post's OGP attachment, falling back to the site one (${ogp.r2_key}): ${String(error)}`,
       );
     }
   }

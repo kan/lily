@@ -8,6 +8,10 @@
  *
  * **色トークンも JS も持ち込まない。** 入力欄 1 つの画面なので、`color-scheme`
  * と数十行の CSS で足りる。
+ *
+ * **文言は英語で、`SiteConfig.lang` から選び分けない。** あれは配信する記事の
+ * 言語であって、管理画面を開く人の言語ではない（標準テーマの `text.ts` と同じ
+ * 考え方）。別の言語で出したい deployment は自前の `AuthAdapter` を書く。
  */
 import { html, raw } from 'hono/html';
 import { renderHtml } from '../html.ts';
@@ -87,7 +91,7 @@ button {
 /** 入力欄。**使える設定があるときだけ出す。** */
 function form(options: LoginPageOptions) {
   return html`<form method="post" action="${options.action}">
-    <label for="password">パスワード</label>
+    <label for="password">Password</label>
     <input
       id="password"
       name="password"
@@ -96,7 +100,7 @@ function form(options: LoginPageOptions) {
       required
       autofocus
     />
-    <button type="submit">ログイン</button>
+    <button type="submit">Sign in</button>
   </form>`;
 }
 
@@ -105,28 +109,28 @@ function setupNotice(options: LoginPageOptions, unusable: 'unset' | 'tooShort') 
   // 名前が分かっていれば添える。分からないときに `ADMIN_PASSWORD` と決め打つと、
   // 別の名前で渡している deployment の運用者に嘘の案内をすることになる。
   const secret = options.secretName
-    ? html`パスワードの secret（<code>${options.secretName}</code>）`
-    : html`パスワードの secret`;
+    ? html`the password secret (<code>${options.secretName}</code>)`
+    : html`the password secret`;
 
   return unusable === 'tooShort'
     ? html`<p class="error">
-        設定されたパスワードが短すぎるので、管理画面を開けません。
-        ${secret}を ${options.minLength} 文字以上にして、デプロイし直してください。
+        The password that is set is too short, so the admin UI cannot be opened. Set
+        ${secret} to ${options.minLength} characters or more and deploy again.
       </p>`
     : html`<p class="error">
-        この deployment はまだ設定されていません。管理者は${secret}を設定してください。
+        This deployment is not configured yet. The administrator has to set ${secret}.
       </p>`;
 }
 
 export function renderLoginPage(options: LoginPageOptions): string {
   return renderHtml(html`<!doctype html>
-    <html lang="ja">
+    <html lang="en">
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="color-scheme" content="light dark" />
         <meta name="robots" content="noindex" />
-        <title>ログイン | ${options.siteName}</title>
+        <title>Sign in | ${options.siteName}</title>
         <style>
           ${raw(STYLE)}
         </style>
@@ -134,7 +138,7 @@ export function renderLoginPage(options: LoginPageOptions): string {
       <body>
         <main>
           <h1>${options.siteName}</h1>
-          <p class="sub">管理画面</p>
+          <p class="sub">Admin</p>
           ${options.message ? html`<p class="error">${options.message}</p>` : ''}
           ${options.unusable ? setupNotice(options, options.unusable) : form(options)}
         </main>

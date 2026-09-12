@@ -224,7 +224,7 @@ async function uploadThumb(
 ): Promise<unknown> {
   if (thumb === null) return null;
   if (thumb.bytes.byteLength > MAX_THUMB_BYTES) {
-    console.warn(`bluesky: サムネが大きすぎるので載せない (${thumb.bytes.byteLength} bytes)`);
+    console.warn(`bluesky: thumbnail too large, posting without it (${thumb.bytes.byteLength} bytes)`);
     return null;
   }
 
@@ -236,7 +236,7 @@ async function uploadThumb(
     });
     return uploaded.blob;
   } catch (error) {
-    console.warn(`bluesky: サムネを上げられなかったので載せない (${describe(error)})`);
+    console.warn(`bluesky: could not upload the thumbnail, posting without it (${describe(error)})`);
     return null;
   }
 }

@@ -78,7 +78,7 @@ describe('passwordAuth のログイン', () => {
     expect(response.status).toBe(401);
     expect(response.headers.get('set-cookie')).toBeNull();
     expect(response.headers.get('cache-control')).toBe('no-store');
-    expect(await response.text()).toContain('パスワードが違います');
+    expect(await response.text()).toContain('not right');
   });
 
   it('body が読めなくても例外にしない', async () => {
@@ -206,7 +206,7 @@ describe('passwordAuth の設定が足りないとき', () => {
   it('未設定なら入力欄を出さず、何をすればよいか出す', async () => {
     const body = await screen(empty);
     expect(body).not.toContain('<form');
-    expect(body).toContain('設定されていません');
+    expect(body).toContain('not configured yet');
   });
 
   /**
@@ -217,9 +217,9 @@ describe('passwordAuth の設定が足りないとき', () => {
   it('短すぎるときは、未設定とは違う文を出す', async () => {
     const body = await screen();
     expect(body).not.toContain('<form');
-    expect(body).toContain('短すぎる');
+    expect(body).toContain('too short');
     expect(body).toContain(String(MIN_PASSWORD_LENGTH));
-    expect(body).not.toContain('設定されていません');
+    expect(body).not.toContain('not configured yet');
   });
 
   /** core は deployment が何という名前で secret を持っているか知らない。 */
