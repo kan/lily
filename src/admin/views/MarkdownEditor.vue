@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import { client } from '../api.ts';
 import { caretPoint } from '../caret.ts';
+import { t } from '../i18n.ts';
 import { blockPadding, imageMarkdown, inLinkUrl } from '../../core/render/markdown.ts';
 import Icon from './Icon.vue';
 
@@ -75,7 +76,11 @@ function placePopup(): void {
 // **描画のあとに測る。** 幅は出てみないと分からず、折り返しも本文が入ってから決まる。
 watch([cardTarget, () => props.modelValue], () => void nextTick(placePopup), { flush: 'post' });
 
-const TABLE = ['| 見出し | 見出し |', '| --- | --- |', '| 中身 | 中身 |'].join('\n');
+/** 差し込む表の雛形。**見出しも中身も置き字**なので、画面の言語で出す。 */
+const table = computed(() => {
+  const [heading, cell] = t.markdown.tableSample;
+  return [`| ${heading} | ${heading} |`, '| --- | --- |', `| ${cell} | ${cell} |`].join('\n');
+});
 
 type Range = { start: number; end: number };
 
@@ -339,33 +344,48 @@ function isHttpUrl(text: string): boolean {
   <!-- 似たものをまとめる。左から 見出し / インライン / ブロック / 箇条書き。 -->
   <div class="toolbar">
     <div class="group">
-      <button type="button" @mousedown.prevent title="見出し" @click="prefixLine('## ')">H2</button>
-      <button type="button" @mousedown.prevent title="小見出し" @click="prefixLine('### ')">H3</button>
+      <button type="button" @mousedown.prevent :title="t.markdown.heading" @click="prefixLine('## ')">H2</button>
+      <button type="button" @mousedown.prevent :title="t.markdown.subheading" @click="prefixLine('### ')">H3</button>
     </div>
 
     <div class="group">
-      <button type="button" @mousedown.prevent title="太字" @click="surround('**', '**', '太字')">
+      <button
+        type="button"
+        @mousedown.prevent
+        :title="t.markdown.bold"
+        @click="surround('**', '**', t.markdown.boldSample)"
+      >
         <Icon name="bold" />
       </button>
-      <button type="button" @mousedown.prevent title="斜体" @click="surround('*', '*', '斜体')">
+      <button
+        type="button"
+        @mousedown.prevent
+        :title="t.markdown.italic"
+        @click="surround('*', '*', t.markdown.italicSample)"
+      >
         <Icon name="italic" />
       </button>
-      <button type="button" @mousedown.prevent title="インラインコード" @click="surround('`', '`', 'code')">
+      <button type="button" @mousedown.prevent :title="t.markdown.inlineCode" @click="surround('`', '`', 'code')">
         <Icon name="code" />
       </button>
-      <button type="button" @mousedown.prevent title="リンク" @click="surround('[', '](https://)', 'リンク')">
+      <button
+        type="button"
+        @mousedown.prevent
+        :title="t.markdown.link"
+        @click="surround('[', '](https://)', t.markdown.linkSample)"
+      >
         <Icon name="link" />
       </button>
     </div>
 
     <div class="group">
-      <button type="button" @mousedown.prevent title="画像を入れる" @click="openPicker">
+      <button type="button" @mousedown.prevent :title="t.markdown.image" @click="openPicker">
         <Icon name="image" />
       </button>
-      <button type="button" @mousedown.prevent title="コードブロック" @click="surround('```ts\n', '\n```', '')">
+      <button type="button" @mousedown.prevent :title="t.markdown.codeBlock" @click="surround('```ts\n', '\n```', '')">
         <Icon name="block" />
       </button>
-      <button type="button" @mousedown.prevent title="引用" @click="prefixLine('> ')">
+      <button type="button" @mousedown.prevent :title="t.markdown.quote" @click="prefixLine('> ')">
         <Icon name="quote" />
       </button>
 
@@ -373,7 +393,7 @@ function isHttpUrl(text: string): boolean {
         <button
           type="button"
           @mousedown.prevent
-          title="そのほかの記法"
+          :title="t.markdown.more"
           :class="{ on: menuOpen }"
           @click="toggleMenu"
           @keydown.escape="closeMenu"
@@ -383,18 +403,18 @@ function isHttpUrl(text: string): boolean {
         <!-- 項目は button。li に click だけ付けるとキーボードで押せない。 -->
         <ul v-if="menuOpen" class="menu">
           <li>
-            <button type="button" @click="fromMenu(() => insertBlock(TABLE))">
-              <Icon name="table" /><span>表</span>
+            <button type="button" @click="fromMenu(() => insertBlock(table))">
+              <Icon name="table" /><span>{{ t.markdown.table }}</span>
             </button>
           </li>
           <li>
             <button type="button" @click="fromMenu(() => insertBlock('---'))">
-              <Icon name="rule" /><span>水平線</span>
+              <Icon name="rule" /><span>{{ t.markdown.rule }}</span>
             </button>
           </li>
           <li>
             <button type="button" @click="fromMenu(insertFootnote)">
-              <Icon name="footnote" /><span>脚注</span>
+              <Icon name="footnote" /><span>{{ t.markdown.footnote }}</span>
             </button>
           </li>
         </ul>
@@ -402,10 +422,10 @@ function isHttpUrl(text: string): boolean {
     </div>
 
     <div class="group">
-      <button type="button" @mousedown.prevent title="箇条書き" @click="prefixLine('- ')">
+      <button type="button" @mousedown.prevent :title="t.markdown.bullets" @click="prefixLine('- ')">
         <Icon name="list" />
       </button>
-      <button type="button" @mousedown.prevent title="番号付きリスト" @click="prefixLine('1. ')">
+      <button type="button" @mousedown.prevent :title="t.markdown.numbers" @click="prefixLine('1. ')">
         <Icon name="ordered-list" />
       </button>
     </div>
@@ -438,13 +458,13 @@ function isHttpUrl(text: string): boolean {
       :style="popupAt ? { top: `${popupAt.top}px`, left: `${popupAt.left}px` } : { visibility: 'hidden' }"
       @mousedown.prevent
     >
-      <button type="button" :disabled="carding" title="題と説明とサムネのブロックにする" @click="toCard">
-        <Icon name="link" /><span>{{ carding ? '取りに行っています…' : 'カードにする' }}</span>
+      <button type="button" :disabled="carding" :title="t.markdown.makeCardTitle" @click="toCard">
+        <Icon name="link" /><span>{{ carding ? t.markdown.carding : t.markdown.makeCard }}</span>
       </button>
-      <button type="button" class="close" title="閉じる (Esc)" @click="justPasted = null">×</button>
+      <button type="button" class="close" :title="t.markdown.closeEsc" @click="justPasted = null">
+        ×
+      </button>
     </div>
   </div>
-  <p class="muted">
-    画像はドラッグ＆ドロップ・貼り付け・ボタンで入る。URL を貼るとタイトル付きのリンクになる。
-  </p>
+  <p class="muted">{{ t.markdown.help }}</p>
 </template>

@@ -34,8 +34,12 @@ if you want the same properties:
   its URL.
 - **It makes no outbound requests** (no webfonts). A theme distributed on npm should not
   decide a site's CSP and privacy posture for it.
-- All user-visible strings are in one file. **There is no translation mechanism** — a site in
-  another language copies the theme.
+- All user-visible strings are in one file, one table per language. **Which table is used
+  comes from the configuration** (`site.uiLang`, falling back to `site.lang`), never from the
+  reader's `Accept-Language`: public pages sit in shared caches, and Cloudflare's edge ignores
+  every `Vary` except `Accept-Encoding`, so the language returned to one reader is the one
+  served to the next. A language with no table falls back to English, so the page always
+  renders. `resolveLocale` and `siteLocale` are exported for a theme that keeps the same rule.
 
 Dates are formatted by passing `SiteConfig.timeZone` to `core/date.ts`, and the reader-facing
 form is left to `Intl` via `SiteConfig.lang`. `<time datetime>` stays ISO 8601, so machines

@@ -69,6 +69,9 @@ publication date and time, tag completion, paging, filtering by tag or keyword, 
 shows the effective configuration, and recovery when the session expires. It is a Vue app,
 already built — **consumers need no Vue toolchain.**
 
+**English or Japanese**, on both sides. The public pages take their language from the
+configuration; the admin UI takes it from the browser and remembers what you switch it to.
+
 **Authentication that is on before there is anything behind it.** `<mount>/api/*` and
 `<mount>/admin/*` never resolve without passing an `AuthAdapter`, so a route added later
 cannot forget to be protected. Three adapters ship with lily; writing a fourth is one

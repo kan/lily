@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { client } from '../api.ts';
+import { t } from '../i18n.ts';
 
 /**
  * タグの入力。**既存のタグを補完する。**
@@ -79,14 +80,14 @@ function onBackspace(event: KeyboardEvent): void {
   <div class="tag-input">
     <span v-for="tag in model" :key="tag" class="chip">
       {{ tag }}
-      <button type="button" title="外す" @click="remove(tag)">×</button>
+      <button type="button" :title="t.tags.remove" @click="remove(tag)">×</button>
     </span>
 
     <input
       ref="input"
       v-model="draft"
       type="text"
-      placeholder="タグを足す"
+      :placeholder="t.tags.add"
       @focus="open = true"
       @input="onInput"
       @blur="open = false"

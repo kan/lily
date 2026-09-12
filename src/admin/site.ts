@@ -65,7 +65,7 @@ function usableTimeZone(timeZone: string): boolean {
     new Intl.DateTimeFormat('en-US', { timeZone });
     return true;
   } catch {
-    console.warn(`lily admin: タイムゾーンを読めないので端末の設定で切り出す (${timeZone})`);
+    console.warn(`lily admin: unreadable time zone, using the device's instead (${timeZone})`);
     return false;
   }
 }

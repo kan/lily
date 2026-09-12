@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { toDateTimeInput } from '../date.ts';
+import { t } from '../i18n.ts';
 import Icon from './Icon.vue';
 
 /**
@@ -16,7 +17,6 @@ const open = ref(false);
 /** 表示している月。値と切り離して持つので、空のままでも月を送れる。 */
 const view = ref(monthOf(model.value));
 
-const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 function monthOf(value: string): { year: number; month: number } {
   const parsed = /^(\d{4})-(\d{2})/.exec(value);
@@ -30,7 +30,9 @@ const datePart = computed(() => model.value.split('T')[0] ?? '');
 const timePart = computed(() => model.value.split('T')[1] ?? '');
 
 const label = computed(() =>
-  model.value === '' ? '指定なし' : `${datePart.value.replaceAll('-', '/')} ${timePart.value}`,
+  model.value === ''
+    ? t.datetime.unset
+    : `${datePart.value.replaceAll('-', '/')} ${timePart.value}`,
 );
 
 /** 月のマス目。前後の月も薄く出して、週の形を崩さない。 */
@@ -120,13 +122,13 @@ function close(): void {
 
     <div v-if="open" class="picker">
       <div class="month">
-        <button type="button" title="前の月" @click="shiftMonth(-1)">‹</button>
-        <span>{{ view.year }} 年 {{ view.month + 1 }} 月</span>
-        <button type="button" title="次の月" @click="shiftMonth(1)">›</button>
+        <button type="button" :title="t.datetime.prevMonth" @click="shiftMonth(-1)">‹</button>
+        <span>{{ t.datetime.monthLabel(view.year, view.month + 1) }}</span>
+        <button type="button" :title="t.datetime.nextMonth" @click="shiftMonth(1)">›</button>
       </div>
 
       <div class="grid">
-        <span v-for="name in WEEKDAYS" :key="name" class="weekday">{{ name }}</span>
+        <span v-for="name in t.datetime.weekdays" :key="name" class="weekday">{{ name }}</span>
         <button
           v-for="cell in cells"
           :key="cell.key"
@@ -147,8 +149,8 @@ function close(): void {
           :value="timePart"
           @change="normalizeTime"
         />
-        <button type="button" @click="setNow">今</button>
-        <button type="button" @click="clear">消す</button>
+        <button type="button" @click="setNow">{{ t.datetime.now }}</button>
+        <button type="button" @click="clear">{{ t.datetime.clear }}</button>
       </div>
     </div>
   </div>

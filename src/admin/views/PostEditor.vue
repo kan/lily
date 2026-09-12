@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { fromDateTimeInput, toDateTimeInput } from '../date.ts';
 import { apiFetch, client, errorMessage, MOUNT } from '../api.ts';
+import { t } from '../i18n.ts';
 import { go, postRoute, replaceRoute } from '../router.ts';
 import { onSessionLost, stash, unstash } from '../session.ts';
 import DateTimeInput from './DateTimeInput.vue';
@@ -234,7 +235,7 @@ async function ensureSaved(): Promise<string | null> {
   if (id !== null) return id;
   // 作っている途中なら題は既に見てある（`create()` が待ち合わせる）。
   if (creating === null && title.value.trim() === '') {
-    error.value = 'タイトルを入れてから画像やカードを入れる（下書きとして保存してから添付する）';
+    error.value = t.editor.titleFirst;
     return null;
   }
   return await create();
@@ -315,7 +316,7 @@ async function revokePreview(): Promise<void> {
 async function announce(): Promise<void> {
   const id = postId.value;
   if (id === null) return;
-  if (!confirm('Bluesky に告知する。取り消せない。')) return;
+  if (!confirm(t.editor.announceConfirm)) return;
   await run(async () => {
     const res = await client.posts[':publicId'].bluesky.$post({ param: { publicId: id } });
     if (!res.ok) return await fail(res);
@@ -333,7 +334,7 @@ async function announce(): Promise<void> {
 async function remove(): Promise<void> {
   const id = postId.value;
   if (id === null) return;
-  if (!confirm('この記事を消す。元に戻せない。')) return;
+  if (!confirm(t.editor.deleteConfirm)) return;
   await run(async () => {
     const res = await client.posts[':publicId'].$delete({ param: { publicId: id } });
     if (!res.ok) return await fail(res);
@@ -532,50 +533,50 @@ onMounted(async () => {
 
 <template>
   <header class="bar">
-    <button @click="go('/')">← 一覧</button>
-    <h1>{{ saved ? '編集' : '新規' }}</h1>
+    <button @click="go('/')">{{ t.editor.backToList }}</button>
+    <h1>{{ saved ? t.editor.editing : t.editor.creating }}</h1>
     <span v-if="post" class="badge" :class="post.status">
-      {{ post.status === 'published' ? '公開' : '下書き' }}
+      {{ post.status === 'published' ? t.list.published : t.list.draft }}
     </span>
     <span class="spacer" />
     <a v-if="post && post.status === 'published'" :href="post.url" target="_blank" rel="noreferrer">
-      公開ページ
+      {{ t.editor.publicPage }}
     </a>
-    <button class="primary" :disabled="busy" @click="save">保存</button>
+    <button class="primary" :disabled="busy" @click="save">{{ t.common.save }}</button>
   </header>
 
   <p v-if="error" class="notice error">{{ error }}</p>
-  <p v-if="restored" class="notice">
-    セッションが切れる前の編集内容を復元した。保存するまで記事には入っていない。
-  </p>
+  <p v-if="restored" class="notice">{{ t.editor.restored }}</p>
   <p v-if="unresolved.length" class="notice">
-    解決できない画像の参照: {{ unresolved.join(', ') }}
+    {{ t.editor.unresolved(unresolved.join(', ')) }}
   </p>
 
   <!-- 上段: 記事そのものではなく「記事についての情報」。ここが動くと本文の
        縦位置がずれるので、本文とプレビューより上にまとめて置く。 -->
   <div class="meta">
     <label class="wide">
-      タイトル
+      {{ t.editor.title }}
       <input v-model="title" type="text" />
     </label>
     <label class="wide">
-      説明（一覧と OGP に出る。空なら本文の冒頭から作る）
+      {{ t.editor.description }}
       <input v-model="description" type="text" :placeholder="autoDescription" />
     </label>
     <label>
-      タグ
+      {{ t.editor.tags }}
       <TagInput v-model="tags" />
     </label>
     <label>
-      {{ post?.status === 'published' ? '公開日時' : '公開日時（公開するとこの日時になる）' }}
+      {{ post?.status === 'published' ? t.editor.publishedAt : t.editor.publishedAtFuture }}
       <DateTimeInput v-model="publishedAt" />
     </label>
     <label v-if="post" class="wide">
-      公開パス（変えると旧パスは自動で alias に残る）
+      {{ t.editor.path }}
       <span class="path-row">
         <input v-model="newPath" type="text" @keyup.enter="changePath" />
-        <button :disabled="busy || newPath === post.canonicalPath" @click="changePath">変える</button>
+        <button :disabled="busy || newPath === post.canonicalPath" @click="changePath">
+          {{ t.editor.changePath }}
+        </button>
       </span>
     </label>
   </div>
@@ -584,11 +585,11 @@ onMounted(async () => {
        見比べられるようにするため。 -->
   <div class="editor">
     <div class="panel">
-      <h2>本文</h2>
+      <h2>{{ t.editor.body }}</h2>
       <MarkdownEditor v-model="bodyMd" :upload="upload" :make-card="makeCard" />
     </div>
     <div class="panel">
-      <h2>プレビュー</h2>
+      <h2>{{ t.editor.preview }}</h2>
       <!-- 本文は自分で書いたものを自分で描いたもの。 -->
       <!-- eslint-disable-next-line vue/no-v-html -->
       <div class="preview" v-html="html" />
@@ -599,21 +600,21 @@ onMounted(async () => {
   <template v-if="post">
     <div class="panels">
       <div class="panel">
-        <h2>URL</h2>
+        <h2>{{ t.editor.urls }}</h2>
         <ul class="paths">
           <li v-for="path in post.paths" :key="path.path">
             <span>/{{ path.path }}/</span>
             <span v-if="path.isCanonical" class="badge">canonical</span>
             <span class="spacer" />
             <button v-if="!path.isCanonical && path.path !== post.publicId" @click="removeAlias(path.path)">
-              消す
+              {{ t.editor.removeAlias }}
             </button>
           </li>
         </ul>
       </div>
 
       <div class="panel">
-        <h2>添付</h2>
+        <h2>{{ t.editor.media }}</h2>
         <ul class="media-list">
           <li v-for="item in post.media" :key="item.publicId">
             <span class="name">{{ item.filename }}</span>
@@ -625,31 +626,30 @@ onMounted(async () => {
               :disabled="busy"
               @click="setOgp(item.isOgp ? null : item.publicId)"
             >
-              {{ item.isOgp ? 'OGP をやめる' : 'OGP に使う' }}
+              {{ item.isOgp ? t.editor.dropOgp : t.editor.useAsOgp }}
             </button>
-            <a :href="item.url" target="_blank" rel="noreferrer">開く</a>
-            <button class="danger" @click="removeMedia(item.publicId)">消す</button>
+            <a :href="item.url" target="_blank" rel="noreferrer">{{ t.editor.open }}</a>
+            <button class="danger" @click="removeMedia(item.publicId)">{{ t.editor.remove }}</button>
           </li>
         </ul>
-        <p v-if="post.media.length === 0" class="muted">まだ無い。</p>
-        <p v-else class="muted">
-          OGP に選んだ絵は、記事の og:image と Bluesky のリンクカードに出る（選ばなければ共通の
-          1 枚）。
-        </p>
+        <p v-if="post.media.length === 0" class="muted">{{ t.editor.noMedia }}</p>
+        <p v-else class="muted">{{ t.editor.ogpNote }}</p>
       </div>
 
       <div class="panel">
-        <h2>下書きプレビュー</h2>
-        <p class="muted">URL を知っている人だけが下書きを読める。検索には載らない。</p>
+        <h2>{{ t.editor.draftPreview }}</h2>
+        <p class="muted">{{ t.editor.draftPreviewNote }}</p>
         <p v-if="previewUrl" class="notice">
           {{ previewUrl }}
-          <span class="muted">（この URL が出るのは発行したときだけ）</span>
+          <span class="muted">{{ t.editor.previewOnce }}</span>
         </p>
         <div class="actions">
           <button :disabled="busy" @click="issuePreview">
-            {{ post.hasPreview ? '発行し直す' : '発行する' }}
+            {{ post.hasPreview ? t.editor.reissuePreview : t.editor.issuePreview }}
           </button>
-          <button v-if="post.hasPreview" :disabled="busy" @click="revokePreview">失効させる</button>
+          <button v-if="post.hasPreview" :disabled="busy" @click="revokePreview">
+            {{ t.editor.revokePreview }}
+          </button>
         </div>
       </div>
 
@@ -659,9 +659,9 @@ onMounted(async () => {
         <!-- 判定は blueskyUri。**URL は組めないことがある**（知らない形の AT-URI）
              ので、そちらで見ると告知済みの記事に告知ボタンが出てしまう。 -->
         <p v-if="post.blueskyUri" class="notice">
-          告知済み
+          {{ t.editor.announced }}
           <a v-if="post.blueskyUrl" :href="post.blueskyUrl" target="_blank" rel="noreferrer">
-            投稿を開く
+            {{ t.editor.openPost }}
           </a>
           <span v-else class="muted">{{ post.blueskyUri }}</span>
         </p>
@@ -669,13 +669,13 @@ onMounted(async () => {
           <p class="muted">
             {{
               post.status === 'published'
-                ? 'タイトルと URL をリンクカード付きで投稿する。'
-                : '公開してから告知できる。'
+                ? t.editor.announceReady
+                : t.editor.announceAfterPublish
             }}
           </p>
           <div class="actions">
             <button :disabled="busy || post.status !== 'published'" @click="announce">
-              告知する
+              {{ t.editor.announce }}
             </button>
           </div>
         </template>
@@ -684,19 +684,18 @@ onMounted(async () => {
 
     <div class="actions" style="margin-top: 1rem">
       <button v-if="post.status === 'draft'" :disabled="busy" @click="setStatus('publish')">
-        公開する
+        {{ t.editor.publish }}
       </button>
-      <button v-else :disabled="busy" @click="setStatus('unpublish')">取り下げる</button>
+      <button v-else :disabled="busy" @click="setStatus('unpublish')">
+        {{ t.editor.unpublish }}
+      </button>
       <span class="spacer" />
-      <button class="danger" :disabled="busy" @click="remove">削除</button>
+      <button class="danger" :disabled="busy" @click="remove">{{ t.common.delete }}</button>
     </div>
   </template>
-  <p v-else class="muted" style="margin-top: 1rem">
-    保存すると URL・添付・プレビューを設定できる。画像を入れると、そのとき下書きとして
-    保存する（添付は記事に紐づくため）。
-  </p>
+  <p v-else class="muted" style="margin-top: 1rem">{{ t.editor.saveFirst }}</p>
 
   <p class="muted" style="margin-top: 2rem">
-    <a :href="`${MOUNT}/`" target="_blank" rel="noreferrer">ブログを開く</a>
+    <a :href="`${MOUNT}/`" target="_blank" rel="noreferrer">{{ t.common.openBlog }}</a>
   </p>
 </template>

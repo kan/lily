@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { isoDate } from '../date.ts';
 import { client, errorMessage, MOUNT } from '../api.ts';
+import { t } from '../i18n.ts';
 import { go, NEW_POST_ROUTE, postRoute } from '../router.ts';
 import { SITE } from '../site.ts';
 
@@ -74,7 +75,9 @@ const filtered = computed(() => Object.values(filters).some((value) => value !==
 const hasPrev = computed(() => offset.value > 0);
 const hasNext = computed(() => offset.value + posts.value.length < total.value);
 const range = computed(() =>
-  total.value === 0 ? '0 件' : `${offset.value + 1}–${offset.value + posts.value.length} / ${total.value} 件`,
+  total.value === 0
+    ? t.list.empty
+    : t.list.range(offset.value + 1, offset.value + posts.value.length, total.value),
 );
 
 /**
@@ -185,7 +188,7 @@ async function rerenderAll(): Promise<void> {
       // ならず、1 行上で既に抜けている。「1 記事の失敗で全体を落とさない」形に
       // 変えた日に素通りする。
       if (body.remaining >= previous) {
-        rerenderError.value = `${body.remaining} 件が残ったまま減らなくなった。Worker のログを見ること。`;
+        rerenderError.value = t.list.rerenderStuck(body.remaining);
         return;
       }
       previous = body.remaining;
@@ -252,9 +255,9 @@ function day(value: string | null): string {
   <header class="bar">
     <h1>{{ SITE.name }}</h1>
     <span class="spacer" />
-    <a href="#/settings">設定</a>
-    <a :href="`${MOUNT}/`" target="_blank" rel="noreferrer">ブログを開く</a>
-    <button class="primary" @click="go(NEW_POST_ROUTE)">新規</button>
+    <a href="#/settings">{{ t.common.settings }}</a>
+    <a :href="`${MOUNT}/`" target="_blank" rel="noreferrer">{{ t.common.openBlog }}</a>
+    <button class="primary" @click="go(NEW_POST_ROUTE)">{{ t.list.newPost }}</button>
   </header>
 
   <div class="filters">
@@ -262,45 +265,47 @@ function day(value: string | null): string {
       v-model="typed"
       type="search"
       class="search"
-      placeholder="タイトル・説明・本文を検索"
-      aria-label="記事を検索"
+      :placeholder="t.list.search"
+      :aria-label="t.list.searchLabel"
     />
-    <select v-model="filters.status" class="filter" aria-label="状態で絞り込む">
-      <option value="">すべての状態</option>
-      <option value="published">公開</option>
-      <option value="draft">下書き</option>
+    <select v-model="filters.status" class="filter" :aria-label="t.list.statusLabel">
+      <option value="">{{ t.list.anyStatus }}</option>
+      <option value="published">{{ t.list.published }}</option>
+      <option value="draft">{{ t.list.draft }}</option>
     </select>
-    <select v-model="filters.tag" class="filter" aria-label="タグで絞り込む">
-      <option value="">すべてのタグ</option>
+    <select v-model="filters.tag" class="filter" :aria-label="t.list.tagLabel">
+      <option value="">{{ t.list.anyTag }}</option>
       <option v-for="option in tagChoices" :key="option.slug" :value="option.slug">
         {{ option.name }}（{{ option.count }}）
       </option>
     </select>
-    <button v-if="filtered" @click="clearFilters">絞り込みを解除</button>
+    <button v-if="filtered" @click="clearFilters">{{ t.list.clearFilters }}</button>
   </div>
 
   <!-- lily を更新して出力が変わったときだけ出る。配信は保存済みの HTML を返すので、
        ここに出さないと古いまま気付けない。 -->
   <p v-if="stale > 0" class="notice">
-    この renderer で描かれていない記事が {{ stale }} 件ある。
+    {{ t.list.staleNotice(stale) }}
     <button :disabled="rerendering" @click="rerenderAll">
-      {{ rerendering ? '描き直している…' : 'まとめて描き直す' }}
+      {{ rerendering ? t.list.rerendering : t.list.rerender }}
     </button>
   </p>
   <p v-if="rerenderError" class="notice error">{{ rerenderError }}</p>
   <p v-if="rerenderWarnings.length" class="notice">
-    解決できない画像の参照を持つ記事: {{ rerenderWarnings.join(', ') }}
+    {{ t.list.unresolvedMedia(rerenderWarnings.join(', ')) }}
   </p>
 
-  <p v-if="tagsError" class="notice error">タグの一覧を読めなかった: {{ tagsError }}</p>
+  <p v-if="tagsError" class="notice error">{{ t.list.tagsFailed(tagsError) }}</p>
   <p v-if="error" class="notice error">{{ error }}</p>
-  <p v-else-if="loading" class="muted">読み込み中…</p>
+  <p v-else-if="loading" class="muted">{{ t.common.loading }}</p>
   <p v-else-if="posts.length === 0" class="muted">
-    {{ filtered ? 'この条件の記事はありません。' : 'まだ記事がありません。' }}
+    {{ filtered ? t.list.noMatches : t.list.noPosts }}
   </p>
 
   <div v-for="post in posts" :key="post.publicId" class="post-row">
-    <span class="badge" :class="post.status">{{ post.status === 'published' ? '公開' : '下書き' }}</span>
+    <span class="badge" :class="post.status">
+      {{ post.status === 'published' ? t.list.published : t.list.draft }}
+    </span>
     <a class="title" href="#" @click.prevent="go(postRoute(post.publicId))">{{ post.title }}</a>
     <!-- パスを決めていない記事は canonical が public_id そのもの。uuid を並べても
          読めないので出さない。 -->
@@ -311,7 +316,7 @@ function day(value: string | null): string {
       v-for="postTag in post.tags"
       :key="postTag.slug"
       class="chip"
-      :aria-label="`${postTag.name} で絞り込む`"
+      :aria-label="t.list.filterByTag(postTag.name)"
       @click="filters.tag = postTag.slug"
     >
       {{ postTag.name }}
@@ -320,8 +325,8 @@ function day(value: string | null): string {
   </div>
 
   <div v-if="!loading && total > 0" class="pager">
-    <button :disabled="!hasPrev" @click="move(-1)">← 前</button>
+    <button :disabled="!hasPrev" @click="move(-1)">{{ t.list.prev }}</button>
     <span class="muted">{{ range }}</span>
-    <button :disabled="!hasNext" @click="move(1)">次 →</button>
+    <button :disabled="!hasNext" @click="move(1)">{{ t.list.next }}</button>
   </div>
 </template>
