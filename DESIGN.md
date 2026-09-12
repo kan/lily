@@ -26,8 +26,8 @@ Astro からの乗り換えで踏んだ穴は
 
 利用側（[`fushihara.net/blog`](https://github.com/kan/fushihara.net/tree/main/blog)）は
 lily を**パッケージ解決だけで**参照していた（`require.resolve` と
-`node_modules/@kanf/lily/...`）ので、移すのに要ったのは `file:../lily` を
-`^0.1.0` に変える 1 行と、向こうの CI からビルド順序を消すことだけ。
+`node_modules/@kanf/lily/...`）。移すのに要ったのは、`file:../lily` を `^0.1.0` に
+変える 1 行と、向こうの CI からビルド順序を消すことだけ。
 
 - **配る形。** `tsconfig.build.json` が `dist/lib` へ emit し、`scripts/copy-lib-assets.mjs`
   が `tsc` の運ばない `.css` を隣へ置く。`exports` は `dist/lib` を指す
@@ -51,17 +51,17 @@ lily のソースは相対 import に `.ts` を付ける（250 箇所近い）�
 
 型検査が読む `worker-configuration.d.ts` には
 `mainModule: typeof import("./test/worker")` が入っている。**これが
-`test/worker.ts` を emit の対象に引きずり込む** ―― program に入った `.ts` は
-`include` にも `exclude` にも関係なく全部出るので、`rootDir` の外にあるあれは
+`test/worker.ts` を emit の対象に引きずり込む。** program に入った `.ts` は
+`include` と `exclude` のどちらにも関係なく全部出る。`rootDir` の外にあるあれは
 `dist/` ではなく**ソースの隣に `test/worker.js` と `test/worker.d.ts` として湧く**
-（エラーも警告も出ない。`git status` で気付いた）。
+（エラーは出ず、警告も無い。`git status` で気付いた）。
 
 そこで emit だけ `wrangler types --include-env false` で出した**ランタイム型だけ**の
-ファイルを読む。lily は `Cloudflare.Env` を 1 箇所も使わない ―― route の `Env` は
-どれもファイル内の `type Env = { Bindings: LilyBindings }` で、`test-support.ts` が
-唯一 `env.DB` を触っていたのも、**deployment ごとに違う生成物を当てにしていた**
-だけなので `env` から名前で取り出す形に直した（lily の `wrangler.jsonc` に DB が
-あることは、これを呼ぶ人のところに DB があることを 1 つも意味しない）。
+ファイルを読む。lily は `Cloudflare.Env` を 1 箇所も使わない。route の `Env` は
+どれもファイル内の `type Env = { Bindings: LilyBindings }` で書いてある。唯一
+`env.DB` を触っていた `test-support.ts` は、**deployment ごとに違う生成物を当てに
+していた**だけなので、`env` から名前で取り出す形に直した。lily の `wrangler.jsonc`
+に DB があることは、これを呼ぶ人のところに DB があることを 1 つも意味しない。
 
 ### 決めてあること
 
@@ -84,8 +84,8 @@ lily のソースは相対 import に `.ts` を付ける（250 箇所近い）�
 
 別リポジトリになっても、lily を直しながら利用側で試したい場面は残る。そのときは
 利用側の依存を一時的に `file:../lily` へ差し替える（`npm link` でも同じ）。
-**`scripts/check-fresh.mjs` はそのときだけ効く** ―― npm から入れた木には
-`scripts/` も `src/` も入らないので、比べる相手がいない。
+**`scripts/check-fresh.mjs` が働くのはそのときだけ。** npm から入れた木には
+`scripts/` と `src/` のどちらも入らないので、比べる相手がいない。
 
 ## 描画（`core/render/`）
 
@@ -316,7 +316,7 @@ const { post } = await res.json();  // 型は handler から
   `if (res.ok)` の絞り込みが効かなくなる（502 は上流の失敗。Bluesky への告知と
   リンクカードが返す）
 - **本文が変わる操作のときだけ `body_html` を描き直す。** 配信側が毎回描き直さずに
-  済む。`GET` は書き込まない（一覧→詳細を開くだけで D1 に書くことになる）。
+  済む。`GET` は書き込まない（一覧から詳細を開くだけで D1 が書き換わってしまう）。
   添付を消したときも描き直す（消えた画像を指す `<img>` を公開ページに残さない）
 - **`POST /api/rerender` は今の renderer で描かれていない記事だけ**を、1 回
   あたり 50 件まで処理して `remaining` を返す。Workers の subrequest には上限が
@@ -335,10 +335,10 @@ const { post } = await res.json();  // 型は handler から
   だけで通すと、**上げられるのに取り込み直せない添付**ができる（書庫に
   Content-Type は無いので、import 側は拡張子しか見られない）
 - `POST /api/link-title` と `POST /api/posts/:publicId/link-card` は**外から来た
-  URL をそのまま fetch する口**。http/https だけ・IP リテラルとローカル向けの名前を
-  弾く・**リダイレクトを自分で追って飛び先も毎回検査する**・5 秒で打ち切る・
-  先頭 64KB だけ読む、で狭めてある（`redirect: 'follow'` に任せると最初の 1 回しか
-  検査されず、公開 URL から内側へ飛ばされる）。**関門は `fetchExternal()` の 1 本**で、
+  URL をそのまま fetch する口**。狭め方は 5 つある。http/https だけを通す。IP
+  リテラルとローカル向けの名前を弾く。**リダイレクトを自分で追って飛び先も毎回
+  検査する**（`redirect: 'follow'` に任せると最初の 1 回しか検査されず、公開 URL
+  から内側へ飛ばされる）。5 秒で打ち切る。先頭 64KB だけ読む。**関門は `fetchExternal()` の 1 本**で、
   カードが OG 画像を取りに行くときも、GitHub の API を叩くときも同じところを通る
   （「リンクカード」の節）
 
@@ -568,8 +568,8 @@ shared/public/ogp.png          本体サイト（「fushihara.net」）
   ヘッダから読めないことがあり、共通の絵の 1200x630 を当てると嘘になる
 - **選択は `updated_at` を動かさない。** 読者から見える中身は変わらないので、
   Atom の `<updated>` と sitemap の `lastmod` を進めない
-- 記事に紐づく行に印を置いているので、**添付を消せば選択も消える**（記事側に
-  media への参照を持たせると、消えた絵を指したままになる）
+- 記事に紐づく行へ印を置いているので、**添付を消せば選択も消える**（記事側が
+  media を参照する形にすると、消えた絵を指したままになる）
 - portable な zip は frontmatter の `ogp:` にファイル名で持つ（`CONTRACT.md`）。
   **書庫に入った添付からしか選ばない**ので、R2 から取れなかった絵を指す名前が
   残ることはない
@@ -607,11 +607,11 @@ shared/public/ogp.png          本体サイト（「fushihara.net」）
   無ければ `ASSETS` バインディングから共通の `ogp.png`。公開 URL を fetch すると
   自分のゾーンへサブリクエストを出すことになる（本体サイトの `/api/blog` が 522 で
   踏んだのと同じ罠）
-- **大きすぎる添付は共通の 1 枚に落とす。** 上限（1MB）を超えたぶんは `announce()`
-  が載せずに投げるので、そのままだと選んだ絵でも共通でもない「絵の無いカード」に
-  なる。`bytes` は DB にあるので、R2 へ取りに行く前に分かる
-- **サムネが取れなくても告知は止めない。** 実体が消えているとき・upload が失敗した
-  ときは絵の無いカードで投げる（「押しても告知できない」にしない）
+- **大きすぎる添付は共通の 1 枚に落とす。** 上限（1MB）を超えた添付を `announce()` は
+  載せずに投げるので、そのままでは選んだ絵でも共通の 1 枚でもない「絵の無いカード」に
+  なる。大きさは `bytes` が持っているため、R2 を読む前に判断できる
+- **サムネが取れなくても告知は止めない。** 実体が消えているときと upload が失敗した
+  ときは、絵の無いカードで投げる（「押しても告知できない」にしない）
 - 本文は「タイトル + 改行 + URL」で、**URL をリンクにする facet を付ける**。無いと
   素のテキストとして出る。範囲は **UTF-8 のバイト位置**なので、日本語のタイトルが
   入ると文字数とずれる。長さの上限は 300 **書記素**（`Intl.Segmenter` で数える。
@@ -621,7 +621,7 @@ shared/public/ogp.png          本体サイト（「fushihara.net」）
   deployment が黙って日本語として流れる（Bluesky は言語で絞り込める）。置き場は
   `SiteConfig.lang` で、`<html lang>` も同じ値を見る
 - **失敗の理由はそのまま画面に出す。** 押すのは管理者ひとりなので、App Password の
-  誤り（`session`）と投稿の失敗（`post`）が見分けられる方がよい（`link-title.ts` が
+  誤り（`session`）と投稿の失敗（`post`）を見分けられる方がよい（`link-title.ts` で
   理由を返さないのは、あちらが外から来た URL を扱う口だから）。上流の失敗だけ
   **502** で返す（こちらの入力が悪いのか外が落ちているのかで、押し直してよいかが変わる）
 
@@ -722,7 +722,7 @@ AUD タグはアプリを開いた先の **Additional settings の一番下**（
 （`blog/**` `shared/**` と自分自身が変わったときだけ）。**マイグレーションが先、
 `wrangler deploy` が後。** 逆にすると新しい列を読むコードが古いスキーマに当たる。
 
-mount を変えるのは `src/site/meta.ts` の `MOUNT_PATH` 1 行。テストも E2E も
+mount を変えるのは `src/site/meta.ts` の `MOUNT_PATH` 1 行。テストと E2E はどちらも
 そこから引いているので、mount の往復で spec を書き換えずに済む。
 
 **配線を動かす手順は `SWITCHOVER.md`。** 順序を間違えると公開ブログを締め出すので、
@@ -736,9 +736,9 @@ mount を変えるのは `src/site/meta.ts` の `MOUNT_PATH` 1 行。テスト�
   302 した）。`/blog/admin` に絞った今も、将来 `/blogroll` のようなパスを足すと
   巻き添えになる
 - **`routes` を書くと `wrangler dev` のリクエスト host が実ドメインになる。**
-  route のゾーン（`fushihara.net`）を origin として渡すので、`localhostOnly` が
-  「ローカルではない host」として拒否し、**管理画面も E2E のフィクスチャ投入も
-  403 になる**。`wrangler.jsonc` の `"dev": { "host": "localhost" }` で戻す
+  route のゾーン（`fushihara.net`）を origin として渡すため、`localhostOnly` は
+  「ローカルではない host」として拒否する。**管理画面も E2E のフィクスチャ投入も
+  403 になる**ので、`wrangler.jsonc` の `"dev": { "host": "localhost" }` で戻す
 - **CI のトークンは「Account API Token」。** deploy ジョブの `db:migrate` が
   `code: 7403`（D1 へのアクセス権限なし）で落ちたときに、User API Token の一覧
   （`dash.cloudflare.com/profile/api-tokens`）を見ても目当てのトークンが無い。
@@ -806,7 +806,7 @@ Workers のランタイム型と DOM は同じプロジェクトに入れられ�
 ## テストの方針
 
 - D1 の制約（`STRICT` / `CHECK` / 部分ユニーク索引）は**生 SQL で叩いて確かめる**。
-  アプリ側の検証を通らない経路でも壊れた行が入らないこと自体が仕様なので、
+  アプリ側の検証を通らない経路でも壊れた行は入らない。それ自体が仕様なので、
   query layer 越しに見ても検証にならない
 - スキーマの正は `migrations/*.sql` の 1 箇所。テストは
   `readD1Migrations()` でそれを読んで適用する。テストだけ別のスキーマを持たない
