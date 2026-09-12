@@ -257,10 +257,14 @@ describe('相対参照の解決', () => {
 });
 
 describe('inLinkUrl (貼り付けで URL を展開してよいか)', () => {
-  /** `|` の位置をカーソルとして読む。 */
+  /** `|` の位置をカーソルとして読む。**目印は 1 つだけ**（2 つ目は取り除かれず、
+   * カーソル位置だけずれたまま通ってしまう）。 */
   function at(withCursor: string): boolean {
     const cursor = withCursor.indexOf('|');
-    return inLinkUrl(withCursor.replace('|', ''), cursor);
+    if (cursor === -1 || withCursor.includes('|', cursor + 1)) {
+      throw new Error(`カーソルの目印は 1 つだけ: ${withCursor}`);
+    }
+    return inLinkUrl(withCursor.slice(0, cursor) + withCursor.slice(cursor + 1), cursor);
   }
 
   it('リンクの URL 欄の中にいる', () => {

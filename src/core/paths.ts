@@ -130,7 +130,12 @@ function encodePath(path: string): string {
  * 表示のために origin を出すところ (管理画面の設定) も必ずこれを通す。
  */
 export function siteOrigin(siteUrl: string): string {
-  return siteUrl.replace(/\/+$/, '');
+  // 正規表現（`/\/+$/`）で落とさない。**末尾に何個スラッシュが並んでいるか**で
+  // 後戻りが増えるので、設定に長い文字列を書かれると時間が伸びる。端から数えれば
+  // 1 回なめるだけで済む。
+  let end = siteUrl.length;
+  while (end > 0 && siteUrl.charAt(end - 1) === '/') end -= 1;
+  return siteUrl.slice(0, end);
 }
 
 /**
