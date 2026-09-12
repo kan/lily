@@ -9,11 +9,17 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  # **GitHub Release を作るのに要る。** タグだけだと「何が変わったか」がリポジトリの
+  # 側に残らず、npm のページから戻ってくる先も無い。
+  contents: write
   # **Trusted Publishing (OIDC)。** token を secret に置かない代わりに、npm 側で
   # 「このリポジトリのこのワークフローからの publish を許す」と登録しておく。
   # provenance（どのリポジトリのどのワークフローが出したか）も自動で付く。
   # 同じスコープの @kanf/wema がこの形。
+  #
+  # npm 側の Trusted Publisher は **direct publish を許可しておくこと。**
+  # 既定は「npm stage publish」だけで、そのままだと `npm publish` が
+  # `403 OIDC permission denied` で落ちる（issue #5 で踏んだ）。
   id-token: write
 
 jobs:
@@ -49,3 +55,21 @@ jobs:
       - run: npm test
 
       - run: npm publish --access public
+
+      # **npm に出たものは GitHub にも残す。** タグだけだと、何が変わったかを
+      # 読む場所が commit ログしかなく、npm のページから戻ってくる先も無い。
+      #
+      # **npm publish の後に置く。** 逆にすると、publish が落ちた版の release が
+      # 残り、「GitHub にはあるのに npm に無い」が成立する。
+      #
+      # `--verify-tag` はタグが実在することを確かめ、`--generate-notes` が
+      # **前の release から今回までの commit**を並べる。本文を自分で書かないのは、
+      # 書き忘れた日に release だけが古い話をするため。
+      #
+      # **`workflow_dispatch` では作らない**（タグの push でしか走らない）。
+      - name: GitHub Release を作る
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" --title "$TAG" --verify-tag --generate-notes

@@ -129,5 +129,15 @@ Publishing (OIDC), so no token sits in the repository secrets. The workflow refu
 publish when the tag and `package.json`'s `version` disagree: a mismatch would otherwise
 publish the wrong version, or fail with a message that cannot be traced back to the tag.
 
+The same run then **creates the GitHub Release** for that tag, with notes generated from the
+commits since the previous release. It runs after `npm publish`, so a release never exists
+for a version that failed to publish.
+
 Bumping the version and tagging are deliberately two steps: deciding to release is not the
-same decision as changing the code.
+same decision as changing the code. After a release, refresh `template/package-lock.json`
+(`cd template && npm update @kanf/lily`) so anyone starting from the button gets the version
+you just published.
+
+**One thing lives outside the repository**: on npmjs.com, the trusted publisher for this
+package must allow *direct* publishing. New trusted-publisher configurations default to
+staged publishes only, and `npm publish` then fails with `403 OIDC permission denied`.
