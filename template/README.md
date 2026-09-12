@@ -22,6 +22,22 @@ Afterwards, set `site.url` in `src/config.ts` to the URL you are actually servin
 domain, or the `*.workers.dev` one) and push — it is the origin every absolute URL in the
 feeds and `<link rel="canonical">` is built from.
 
+### What the button asks of your GitHub account
+
+Copying this directory means **creating a repository**, so Cloudflare's GitHub app has to be
+installed with room to make one. A repository that does not exist yet cannot be picked from
+the "only select repositories" list, so the grant starts out wider than the one repository
+you are about to get.
+
+It does not have to stay that way. Once the deploy is done, GitHub → *Settings* →
+*Applications* → *Cloudflare Workers and Pages* → *Repository access* → **Only select
+repositories** narrows it to the blog, and *Uninstall* on the same page removes it entirely.
+
+**Or skip GitHub altogether.** The Git connection exists so that pushing redeploys you; it is
+not how the Worker gets deployed. Copy this directory, keep it wherever you like, and use the
+commands below — nothing in lily needs a repository, and writing a post never touches one
+either, because posts live in D1.
+
 ## Running it locally
 
 ```bash

@@ -33,6 +33,13 @@ database and the R2 bucket, asks for an admin password, and deploys. **A Cloudfl
 all it takes** — nothing to create beforehand, and no resource ID ever pasted into a config
 file.
 
+Copying the directory means creating a repository, so the button asks to install Cloudflare's
+GitHub app — wider than the one repository you end up with, because that repository does not
+exist yet to be picked from a list. It can be narrowed to the blog afterwards, or skipped
+entirely by deploying from your machine;
+[`template/README.md`](./template/README.md#what-the-button-asks-of-your-github-account) says
+how.
+
 That same directory is what `npm install && npm run dev` runs locally, and the rest of this
 page explains what is in it. ([#7](https://github.com/kan/lily/issues/7) will add
 `npx lily init` for starting from a prompt instead.)
