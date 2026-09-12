@@ -4,19 +4,19 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "//dev": "build と migrate を挟む。dist/ (assets.directory) もローカルの D1 も git に入らないので、clone した直後は必ず無い。無いまま起動すると wrangler が落ちるか、公開ページが D1_ERROR: no such table で 500 になる",
+    "//dev": "build and migrate first: neither dist/ (assets.directory) nor the local D1 is in git, so a fresh clone has neither. Without them wrangler refuses to start, or the public pages 500 with D1_ERROR: no such table",
     "dev": "npm run build && npm run db:migrate:local && wrangler dev",
-    "//build": "配信するものを dist/ に合流させる。wrangler.jsonc の assets.directory が dist/ を指すので、dev もデプロイもこれが要る。lily-assets は @kanf/lily が配るコマンド",
+    "//build": "merge what gets served into dist/. wrangler.jsonc points assets.directory at it, so dev and deploy both need it. lily-assets ships with @kanf/lily",
     "build": "lily-assets dist public",
-    "//deploy": "2 回目以降。マイグレーションが先、wrangler deploy が後。逆にすると、新しい列を読むコードが古いスキーマに当たる時間ができる",
+    "//deploy": "every deploy after the first. Migrations run before wrangler deploy, so new code never meets an old schema",
     "deploy": "npm run build && npm run db:migrate && wrangler deploy",
-    "//deploy:first": "初回だけ。D1 も R2 も wrangler.jsonc の binding から deploy のときに作られるので、その前にマイグレーションを当てようとしても相手がいない",
+    "//deploy:first": "the first deploy only. D1 and R2 are created from the bindings during wrangler deploy, so there is nothing to migrate until it has run once",
     "deploy:first": "npm run build && wrangler deploy && npm run db:migrate",
     "db:migrate": "wrangler d1 migrations apply DB --remote",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "typecheck": "wrangler types && tsc --noEmit"
   },
-  "//dependencies": "CMS 本体。管理画面もマイグレーションも lily-assets も同梱されているので、これ 1 つで足りる",
+  "//dependencies": "the CMS itself. The admin UI, the migrations and lily-assets all ship inside it, so this is the only one",
   "dependencies": {
     "@kanf/lily": "^0.2.0"
   },

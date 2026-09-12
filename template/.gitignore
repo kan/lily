@@ -1,11 +1,11 @@
 node_modules/
 
-# `npm run build` が作る配信物（`public/` と lily の管理画面の合流先）。
+# What `npm run build` produces: `public/` and lily's admin UI, merged.
 dist/
 
-# wrangler の作業場と生成物。
+# wrangler's workspace and generated types.
 .wrangler/
 worker-configuration.d.ts
 
-# **手元の secret。** 中身は `.dev.vars.example` を写して入れる。
+# **Your local secrets.** Copy `.dev.vars.example` and fill it in.
 .dev.vars

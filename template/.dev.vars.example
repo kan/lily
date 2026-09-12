@@ -1,19 +1,21 @@
-# 手元で動かすときの secret。`.dev.vars` に写して使う（`.dev.vars` は git に入れない）。
+# The secrets this blog takes. Copy this file to `.dev.vars` to use them locally
+# (`.dev.vars` stays out of git).
 #
-# **このファイルは Deploy to Cloudflare の入力欄にもなる。** ボタンからデプロイすると、
-# ここに書いたキーがそのまま「値を入れてください」の欄として出て、入れたものが Worker の
-# secret になる。
+# **This file is also what the Deploy to Cloudflare screen reads.** Deploying from the
+# button turns every key in here into a field to fill in, and what you type becomes a
+# Worker secret.
 #
-# 手元で値を入れなければ管理画面は `localhostOnly` で開く（host が localhost /
-# 127.0.0.1 のときだけ通るアダプタ。実ドメインでは通らない）。
+# Leave them empty locally and the admin UI still opens: lily falls back to the
+# `localhostOnly` adapter, which only passes when the host is localhost or 127.0.0.1,
+# and therefore never passes on a real domain.
 
-# 管理画面のパスワード。**12 文字以上**でないと受け付けない。
-# 総当たりに対する備えが「失敗したときの待ち」しか無いので、短いものを許さない。
-# 差し替えると、配ってあったログインの cookie もまとめて無効になる。
+# The admin password. **12 characters or more** — anything shorter is refused, because
+# the only defence against brute force is a delay on failure. Replacing it also voids
+# every login cookie already handed out.
 ADMIN_PASSWORD=
 
-# Bluesky への告知（任意）。**両方揃ったときだけ**使う。片方でも欠けていれば、
-# 管理画面の告知ボタンが「未設定」と言うだけで、他は何も変わらない。
-# アカウントのパスワードではなく App Password を入れること。
+# Announcing posts on Bluesky (optional). **Used only when both are set**; with either
+# missing, the announce button in the admin UI says "not configured" and nothing else
+# changes. Use an App Password, not your account password.
 # BLUESKY_IDENTIFIER=
 # BLUESKY_APP_PASSWORD=

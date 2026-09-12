@@ -23,14 +23,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const lily = dirname(dirname(fileURLToPath(import.meta.url))); // `<パッケージ>/bin/` の 1 つ上。
 
 const [out, ...sources] = process.argv.slice(2);
-if (out === undefined) fail('使い方: lily-assets <出力先> [コピー元...]');
+if (out === undefined) fail('usage: lily-assets <out-dir> [source-dir...]');
 
 const outDir = resolve(process.cwd(), out);
 // **消す前に場所を確かめる。** 下でディレクトリごと消すので、作業ディレクトリの
 // 外や作業ディレクトリそのものを渡されたら止める（`lily-assets .` の打ち間違い）。
 const inside = relative(process.cwd(), outDir);
 if (inside === '' || inside.startsWith('..')) {
-  fail(`出力先が作業ディレクトリの中にない: ${outDir}`);
+  fail(`the output directory is not inside the working directory: ${outDir}`);
 }
 
 await checkAdmin();
@@ -46,7 +46,7 @@ for (const source of sources) {
   if (!(await isDirectory(from))) {
     // **止めない。** 配る静的ファイルを 1 つも持たない deployment は普通にある
     // （lily は絵を 1 枚も持たないので、何を配るかは利用側が決める）。
-    console.info(`lily-assets: ${source} が無いので飛ばした`);
+    console.info(`lily-assets: no ${source} directory, skipped`);
     continue;
   }
   // **渡された順に重ねる。** 同じ名前があれば後のものが勝つ。
@@ -55,7 +55,7 @@ for (const source of sources) {
 
 await cp(join(lily, 'dist', 'admin'), join(outDir, 'admin'), { recursive: true });
 
-console.info(`lily-assets: ${outDir} に置いた (lily は ${lily})`);
+console.info(`lily-assets: wrote ${outDir} (lily: ${lily})`);
 
 /**
  * 管理画面が配れる状態か。**素通しさせない。**
@@ -69,9 +69,9 @@ async function checkAdmin() {
   const entry = join(lily, 'dist', 'admin', 'index.html');
   if (!(await exists(entry))) {
     fail(
-      `管理画面のビルド成果物が無い (${entry})。@kanf/lily をローカルの木へ向けている` +
-        '（file: や npm link）なら、あちらで `npm install && npm run build` を先に回すこと。' +
-        '普段どおり npm から入れているなら `npm ci` をやり直す。',
+      `the admin UI build is missing (${entry}). If @kanf/lily points at a local tree ` +
+        '(file: or npm link), run `npm install && npm run build` there first. ' +
+        'If it comes from npm as usual, run `npm ci` again.',
     );
   }
 
@@ -89,8 +89,9 @@ async function checkAdmin() {
     // **素のスタックトレースを出さない。** この検査は lily 側の都合で落ちることが
     // あり（知らない拡張子を `src/` に足した等）、そのとき利用側に読めるのは
     // 「lily のビルドを確かめられなかった」まで。
-    fail(`dist/lib の鮮度を確かめられなかった (${message(error)})`);
+    fail(`could not check whether dist/lib is up to date (${message(error)})`);
   }
+  // 理由は lily 側が日本語で組む（これが出るのは lily の木を触っている人だけ）。
   if (reason !== null) fail(`${reason}。あちらで \`npm run build:lib\` を回すこと。`);
 }
 

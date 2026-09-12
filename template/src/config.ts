@@ -1,18 +1,20 @@
 /**
- * このブログの設定。**サイト固有のものはここだけ。**
+ * This blog's configuration. **Everything site-specific is here.**
  *
- * lily（`@kanf/lily`）は CMS 本体で、サイトの名前も URL も知らない。ここで渡した
- * ものが公開ページ・フィード・OGP・管理画面に出る。
+ * lily (`@kanf/lily`) is the CMS; it knows neither the name nor the URL of the site it
+ * serves. What you pass here is what shows up on the public pages, in the feeds, in the
+ * OGP tags and in the admin UI.
  */
 import { createLily, localhostOnly, passwordAuth } from '@kanf/lily';
 import { defaultTheme } from '@kanf/lily/theme';
 
-/** 管理画面のパスワード。**12 文字未満は受け付けない。** */
+/** The admin password. **Shorter than 12 characters is refused.** */
 const PASSWORD_SECRET = 'ADMIN_PASSWORD';
 
 /**
- * Worker の secret。**`wrangler.jsonc` には書かない**ものなので、`wrangler types`
- * が出す `Env` には（`.dev.vars` を置くまで）現れない。ここで形を決めておく。
+ * The Worker's secrets. **They are not in `wrangler.jsonc`**, which is the whole point
+ * of a secret, so `wrangler types` does not know about them until you have a `.dev.vars`.
+ * Declaring the shape here keeps the types honest either way.
  */
 type Secrets = {
   readonly ADMIN_PASSWORD?: string;
@@ -22,46 +24,51 @@ type Secrets = {
 
 export const lily = createLily<Env & Secrets>({
   site: {
-    // デプロイ後に自分のドメイン（または `*.workers.dev` の URL）へ変える。
-    // **絶対 URL の起点**なので、ここが違うとフィードと canonical が狂う。
+    // Change this to the URL you actually serve from (your domain, or the *.workers.dev
+    // one). **It is the origin every absolute URL is built from**, so getting it wrong
+    // shows up in the feeds and in `<link rel="canonical">`.
     url: 'https://example.com',
     name: 'My blog',
     description: 'A blog running on lily',
     author: 'Someone',
-    // 配信する中身の言語とタイムゾーン。**既定値は無い**（lily が勝手に決めると、
-    // 別の言語・別の地域のブログが黙って日本語・JST として配られる）。
+    // The language of what you publish, and the time zone days are cut on. **Neither has
+    // a default**: if lily picked one, a blog in another language or another region would
+    // quietly be served as Japanese, in JST.
     lang: 'en',
     timeZone: 'UTC',
-    // OGP の絵。**絶対 URL。** 置き場は `public/` でもよそのドメインでもよい。
+    // The site-wide OGP image, used for posts that have not chosen their own.
+    // **An absolute URL** — it can live in `public/`, or on another domain entirely.
     ogImage: { url: 'https://example.com/ogp.png', width: 1200, height: 630 },
   },
 
-  // ルートに置く。`/blog` の下に出したいなら '/blog'（URL を組むのは lily の仕事で、
-  // テーマもテストもここから引く）。
+  // Serve at the root. Use '/blog' to put the whole thing under a subpath instead —
+  // lily builds every URL, so the theme and the tests follow along.
   mountPath: '/',
 
-  // 標準テーマ。自前の見た目にしたいときは `node_modules/@kanf/lily` の `theme` を
-  // 写して書き換える（4 つの関数とスタイルシート 1 本）。
+  // The theme that ships with lily. To make it your own, copy
+  // `node_modules/@kanf/lily/dist/lib/theme` into `src/theme/` and change it there
+  // (four functions and one stylesheet).
   theme: defaultTheme,
 
-  // mount root 直下に配る静的ファイル（`public/` に置いたもの）。
-  // **ここに挙げた名前は記事のパスとして予約される。**
+  // Files served at the mount root, i.e. what you put in `public/`.
+  // **A name listed here is reserved as a post path.**
   assets: [],
 
   /**
-   * 管理画面と管理 API の守り。
+   * What guards the admin UI and the admin API.
    *
-   * **secret が無いのは手元だけ。** `.dev.vars` に書かなければ `localhostOnly` に
-   * 落ち、これは host が `localhost` / `127.0.0.1` のときしか通らない。
-   * **本番で secret を入れ忘れても開かない**（どちらのアダプタも通さない）。
+   * **Running without the secret is a local thing.** Leave it out of `.dev.vars` and you
+   * fall through to `localhostOnly`, which only passes when the host is `localhost` or
+   * `127.0.0.1`. **Forgetting the secret in production does not open the door**: neither
+   * adapter lets anyone in.
    */
   auth: (env) =>
     env.ADMIN_PASSWORD
       ? passwordAuth({ password: env.ADMIN_PASSWORD, secretName: PASSWORD_SECRET })
       : localhostOnly(),
 
-  // Bluesky への告知（任意）。両方揃ったときだけ使う。揃っていなければ管理画面の
-  // 告知ボタンが「未設定」と言うだけで、他の機能は何も変わらない。
+  // Announcing posts on Bluesky (optional), used only when both credentials are set.
+  // Without them the announce button reports "not configured" and nothing else changes.
   bluesky: (env) =>
     env.BLUESKY_IDENTIFIER && env.BLUESKY_APP_PASSWORD
       ? { identifier: env.BLUESKY_IDENTIFIER, appPassword: env.BLUESKY_APP_PASSWORD }
