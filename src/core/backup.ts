@@ -11,7 +11,7 @@
  *
  * **Access の外側から動く。** 管理 API は Cloudflare Access の内側にあり、Access が
  * サービストークンに出す JWT は `sub` が空文字なので `auth/access.ts` が拒否する
- * （`README.md` の「記事の入れ方」）。機械が通れる口を開けるより、Worker 自身の
+ * （`DESIGN.md` の「記事の入れ方」）。機械が通れる口を開けるより、Worker 自身の
  * Cron Trigger から D1 と R2 を直に読む方が、開ける穴が 1 つ少ない。
  */
 import { exportArchive, logExportWarnings } from './transfer/index.ts';

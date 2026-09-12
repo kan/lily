@@ -1,12 +1,14 @@
 # lily の設計の記録
 
 **「なぜそうなっているか」を置く場所。** 使い方と公開 API は
-[`README.md`](./README.md) にある。
+[`README.md`](./README.md)（英語）、直すときの手順は
+[`CONTRIBUTING.md`](./CONTRIBUTING.md)（英語）にある。
 
 分けてあるのは、**README がそのまま npm のパッケージページになる**ため。
 初めて触る人が読むものと、直すときに読むものを 1 本に混ぜると、前者が後者に
 埋もれる（分ける前は 86KB あった）。**この記録はパッケージに入らない**
-（`package.json` の `files` に挙げていない）。
+（`package.json` の `files` に挙げていない）ので、**日本語のまま置いてある** ——
+README と違って「知らない人が最初に読むもの」ではない。
 
 決定に至る経緯そのものは
 [issue #5](https://github.com/kan/fushihara.net/issues/5)（設計）と
