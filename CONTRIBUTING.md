@@ -136,9 +136,10 @@ commits since the previous release. It runs after `npm publish`, so a release ne
 for a version that failed to publish.
 
 Bumping the version and tagging are deliberately two steps: deciding to release is not the
-same decision as changing the code. After a release, refresh `template/package-lock.json`
-(`cd template && npm update @kanf/lily`) so anyone starting from the button gets the version
-you just published.
+same decision as changing the code. After a release, point the template at what you just
+published — `cd template && npm install @kanf/lily@latest --package-lock-only` — which moves
+both the range and the lock. **The range matters on a minor bump**: `^0.3.0` does not accept
+`0.4.0`, so `npm update` alone would leave the button's copy a minor behind.
 
 **One thing lives outside the repository**: on npmjs.com, the trusted publisher for this
 package must allow *direct* publishing. New trusted-publisher configurations default to

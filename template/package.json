@@ -18,7 +18,7 @@
   },
   "//dependencies": "the CMS itself. The admin UI, the migrations and lily-assets all ship inside it, so this is the only one",
   "dependencies": {
-    "@kanf/lily": "^0.2.0"
+    "@kanf/lily": "^0.3.0"
   },
   "devDependencies": {
     "typescript": "^6.0.3",

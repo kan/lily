@@ -122,8 +122,10 @@ issue #8 で入れたもの。**設定はコードに無い**ので、ここに�
     （`.../lily/tree/main/template`）。Cloudflare はこのディレクトリを新しい repo の
     root として扱うので、**中だけで完結していること**（外のファイルを参照しない）
   - **`template/package-lock.json` は commit する**（ボタンの `npm ci` が要る）。
-    lily を publish したら `cd template && npm install` で `@kanf/lily` の版を
-    上げ直すこと。忘れると、ボタンから入る人だけ古い lily で始まる
+    lily を publish したら `cd template && npm install @kanf/lily@latest --package-lock-only`。
+    **範囲も動かす** —— `^0.3.0` は `0.4.0` を受けないので、`npm update` だけだと
+    ボタンから入る人が minor 1 つ古い lily で始まる（`init` は自分の版に書き換える
+    ので、そちらは影響を受けない）
 - **`migrations/` がスキーマの正。** 利用側は `node_modules/@kanf/lily/migrations` を
   `migrations_dir` で直接指す。リリースに入った migration は他人が本番の D1 に流すものに
   なるので、**追加のみで書く。** 利用側のデプロイは「マイグレーションが先、`wrangler deploy`
