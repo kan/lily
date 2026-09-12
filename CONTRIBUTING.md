@@ -1,6 +1,7 @@
 # Contributing
 
-This is the page for working **on** lily. Using it is [`README.md`](./README.md); why it is
+This is the page for working **on** lily. Using it is [`README.md`](./README.md) and
+[`docs/`](./docs); why it is
 shaped the way it is, in Japanese, is [`DESIGN.md`](./DESIGN.md).
 
 **lily is an npm package, not a deployment.** The `wrangler.jsonc` at the root exists so that

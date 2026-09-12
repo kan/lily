@@ -139,7 +139,12 @@ for it, so a copied theme keeps working if you move the blog to a subpath.
 
 ## Documentation
 
-- [lily's README](https://github.com/kan/lily#readme) — the configuration reference, the
-  public API, the auth adapters, the portable format
+- [lily's README](https://github.com/kan/lily#readme) — what it is, and what else it can do
+- [Configuration](https://github.com/kan/lily/blob/main/docs/configuration.md) — every field
+  of the config above, the URLs lily serves, and what the package exports
+- [Authentication](https://github.com/kan/lily/blob/main/docs/authentication.md),
+  [Themes](https://github.com/kan/lily/blob/main/docs/themes.md),
+  [Images](https://github.com/kan/lily/blob/main/docs/images.md),
+  [Import, export and backups](https://github.com/kan/lily/blob/main/docs/portable.md)
 - [`DESIGN.md`](https://github.com/kan/lily/blob/main/DESIGN.md) — why lily is built the way
   it is (in Japanese)

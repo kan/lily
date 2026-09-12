@@ -53,15 +53,16 @@ The parts where lily makes a security claim, and therefore can break one:
 - **`localhostOnly` being permissive.** That is what it is for. It is only reachable when the
   request host is `localhost` or `127.0.0.1`.
 - **Resource exhaustion behind authentication**, such as a 50MB import filling the Worker's
-  memory. The limits are documented in the README; if you find a way to trigger that work
+  memory. The limits are documented in
+  [`docs/portable.md`](./docs/portable.md#limits); if you find a way to trigger that work
   *without* authentication, that is in scope.
 - **Bugs in Cloudflare's platform or in dependencies.** Report those upstream. Dependabot
   watches this repository's dependencies and its advisories.
 
 ## Notes for deployments
 
-The choices lily makes that an operator should know about, all covered in more depth in the
-README:
+The choices lily makes that an operator should know about, all covered in more depth in
+[`docs/authentication.md`](./docs/authentication.md):
 
 - The admin password lives in a Worker secret and is **never stored in D1**. Rotating it means
   replacing the secret, which also invalidates every session cookie already handed out — the
