@@ -9,12 +9,13 @@
  * **色トークンも JS も持ち込まない。** 入力欄 1 つの画面なので、`color-scheme`
  * と数十行の CSS で足りる。
  *
- * **文言は英語で、`SiteConfig.lang` から選び分けない。** あれは配信する記事の
- * 言語であって、管理画面を開く人の言語ではない（標準テーマの `text.ts` と同じ
- * 考え方）。別の言語で出したい deployment は自前の `AuthAdapter` を書く。
+ * **文言は `SiteConfig.uiLang`（無ければ `lang`）で選ぶ。** 標準テーマと同じ規則で、
+ * 決めるのは `core/locale.ts` の `siteLocale()`。表に無い言語は英語に落ちるので、
+ * どの deployment でも画面は出る。
  */
 import { html, raw } from 'hono/html';
 import { renderHtml } from '../html.ts';
+import type { Locale } from '../locale.ts';
 
 export type LoginPageOptions = {
   readonly siteName: string;
@@ -42,6 +43,11 @@ export type LoginPageOptions = {
   readonly secretName?: string;
   /** 受け付ける最短の長さ。`tooShort` の案内に出す。 */
   readonly minLength: number;
+  /**
+   * 文言の言語。**`AuthContext` が運んでくる**（決めるのは `core/locale.ts` の
+   * `siteLocale()` で、標準テーマと同じ規則）。
+   */
+  readonly locale: Locale;
 };
 
 const STYLE = `
@@ -88,10 +94,66 @@ button {
 }
 `;
 
+/**
+ * 画面に出る文言。**表は言語ごとに同じ形**なので、片方だけ足したものは
+ * コンパイルが通らない。
+ */
+type LoginText = {
+  readonly title: string;
+  readonly password: string;
+  readonly signIn: string;
+  readonly secretNamed: (name: string) => string;
+  readonly secret: string;
+  readonly howNamed: (name: string) => string;
+  readonly how: string;
+  readonly tooShort: (secret: string, minLength: number, how: string) => string;
+  readonly unset: (secret: string, minLength: number, how: string) => string;
+};
+
+const TEXTS: Record<Locale, LoginText> = {
+  en: {
+    title: 'Sign in',
+    password: 'Password',
+    signIn: 'Sign in',
+    secretNamed: (name) => `the password secret (<code>${name}</code>)`,
+    secret: 'the password secret',
+    howNamed: (name) =>
+      'in the Cloudflare dashboard under Settings → Variables and Secrets, or with ' +
+      `<code>npx wrangler secret put ${name}</code>`,
+    how: 'in the Cloudflare dashboard under Settings → Variables and Secrets, or with <code>npx wrangler secret put</code>',
+    tooShort: (secret, minLength, how) =>
+      `The password that is set is too short, so the admin UI cannot be opened. Replace ${secret} ` +
+      `with one of ${minLength} characters or more — ${how} — and deploy again. Saving the secret ` +
+      'is not enough on its own: the Worker that is running keeps the old value until the next ' +
+      'deployment.',
+    unset: (secret, minLength, how) =>
+      `This deployment is not configured yet. The administrator has to set ${secret} to a ` +
+      `password of ${minLength} characters or more — ${how} — and deploy again.`,
+  },
+  ja: {
+    title: 'ログイン',
+    password: 'パスワード',
+    signIn: 'ログイン',
+    secretNamed: (name) => `パスワードの secret（<code>${name}</code>）`,
+    secret: 'パスワードの secret',
+    howNamed: (name) =>
+      'Cloudflare の dashboard なら Settings → Variables and Secrets、' +
+      `手元からなら <code>npx wrangler secret put ${name}</code>`,
+    how: 'Cloudflare の dashboard なら Settings → Variables and Secrets、手元からなら <code>npx wrangler secret put</code>',
+    tooShort: (secret, minLength, how) =>
+      `設定されたパスワードが短すぎるので、管理画面を開けません。${secret}を ${minLength} ` +
+      `文字以上のものに入れ替えて（${how}）、デプロイし直してください。保存するだけでは` +
+      '足りません。動いている Worker は次のデプロイまで古い値のままです。',
+    unset: (secret, minLength, how) =>
+      `この deployment はまだ設定されていません。管理者が${secret}に ${minLength} ` +
+      `文字以上のパスワードを設定し（${how}）、デプロイし直してください。`,
+  },
+};
+
 /** 入力欄。**使える設定があるときだけ出す。** */
-function form(options: LoginPageOptions) {
+function form(options: LoginPageOptions, text: LoginText) {
   return html`<form method="post" action="${options.action}">
-    <label for="password">Password</label>
+    <label for="password">${text.password}</label>
     <input
       id="password"
       name="password"
@@ -100,7 +162,7 @@ function form(options: LoginPageOptions) {
       required
       autofocus
     />
-    <button type="submit">Sign in</button>
+    <button type="submit">${text.signIn}</button>
   </form>`;
 }
 
@@ -113,40 +175,34 @@ function form(options: LoginPageOptions) {
  * dashboard で secret を保存しても、動いている Worker は次のデプロイまで古い値の
  * ままだった（#4 で踏んだ）。
  */
-function setupNotice(options: LoginPageOptions, unusable: 'unset' | 'tooShort') {
+function setupNotice(options: LoginPageOptions, text: LoginText, unusable: 'unset' | 'tooShort') {
   // 名前が分かっていれば添える。分からないときに `ADMIN_PASSWORD` と決め打つと、
   // 別の名前で渡している deployment の運用者に嘘の案内をすることになる。
-  const secret = options.secretName
-    ? html`the password secret (<code>${options.secretName}</code>)`
-    : html`the password secret`;
-  const how = options.secretName
-    ? html`in the Cloudflare dashboard under Settings → Variables and Secrets, or with
-        <code>npx wrangler secret put ${options.secretName}</code>`
-    : html`in the Cloudflare dashboard under Settings → Variables and Secrets, or with
-        <code>npx wrangler secret put</code>`;
+  //
+  // **`<code>` を含むので `raw()` で出す。** 差し込むのは core が持つ文言と
+  // `secretName`（`passwordAuth` に渡された設定の値）だけで、外から来た文字列は
+  // 1 つも混ざらない。
+  const name = options.secretName;
+  const secret = name === undefined ? text.secret : text.secretNamed(name);
+  const how = name === undefined ? text.how : text.howNamed(name);
+  const notice =
+    unusable === 'tooShort'
+      ? text.tooShort(secret, options.minLength, how)
+      : text.unset(secret, options.minLength, how);
 
-  return unusable === 'tooShort'
-    ? html`<p class="error">
-        The password that is set is too short, so the admin UI cannot be opened. Replace
-        ${secret} with one of ${options.minLength} characters or more — ${how} — and deploy
-        again. Saving the secret is not enough on its own: the Worker that is running keeps
-        the old value until the next deployment.
-      </p>`
-    : html`<p class="error">
-        This deployment is not configured yet. The administrator has to set ${secret} to a
-        password of ${options.minLength} characters or more — ${how} — and deploy again.
-      </p>`;
+  return html`<p class="error">${raw(notice)}</p>`;
 }
 
 export function renderLoginPage(options: LoginPageOptions): string {
+  const text = TEXTS[options.locale];
   return renderHtml(html`<!doctype html>
-    <html lang="en">
+    <html lang="${options.locale}">
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="color-scheme" content="light dark" />
         <meta name="robots" content="noindex" />
-        <title>Sign in | ${options.siteName}</title>
+        <title>${text.title} | ${options.siteName}</title>
         <style>
           ${raw(STYLE)}
         </style>
@@ -154,9 +210,11 @@ export function renderLoginPage(options: LoginPageOptions): string {
       <body>
         <main>
           <h1>${options.siteName}</h1>
-          <p class="sub">Admin</p>
+          <p class="sub">${text.title}</p>
           ${options.message ? html`<p class="error">${options.message}</p>` : ''}
-          ${options.unusable ? setupNotice(options, options.unusable) : form(options)}
+          ${options.unusable
+            ? setupNotice(options, text, options.unusable)
+            : form(options, text)}
         </main>
       </body>
     </html>`);

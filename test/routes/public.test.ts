@@ -34,7 +34,9 @@ describe('一覧', () => {
   it('記事が無くてもページは出る', async () => {
     const res = await get(`${MOUNT}/`);
     expect(res.status).toBe(200);
-    expect(await res.text()).toContain('No posts yet.');
+    // このテストのサイトは `lang: 'ja'` なので、標準テーマの文言も日本語で出る
+    // （文言の言語の決め方は `test/locale.test.ts`）。
+    expect(await res.text()).toContain('まだ記事がありません。');
   });
 
   it('20 件ごとに分かれ、前後のページへ辿れる', async () => {

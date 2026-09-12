@@ -7,6 +7,7 @@
 import { Hono } from 'hono';
 import type { AuthContext } from './auth/index.ts';
 import type { LilyBindings, LilyConfig, PageConfig } from './config.ts';
+import { siteLocale } from './locale.ts';
 import { createPaths } from './paths.ts';
 import { adminRoutes } from './routes/admin.ts';
 import { apiRoutes, type AppEnv } from './routes/api.ts';
@@ -46,6 +47,7 @@ function createAuthContext(config: PageConfig): AuthContext {
   const urls = createPaths(config).urls;
   return {
     siteName: config.site.name,
+    locale: siteLocale(config.site),
     adminUrl: urls.admin(),
     loginUrl: urls.admin(AUTH_ROUTE.login),
     logoutUrl: urls.admin(AUTH_ROUTE.logout),

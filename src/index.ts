@@ -79,6 +79,19 @@ export {
   type Urls,
 } from './core/paths.ts';
 
+/**
+ * 画面の文言の言語。**テーマを写した deployment も同じ規則で選べる**ように出す
+ * （`SiteConfig.uiLang`、無ければ `lang`）。読み手の `Accept-Language` で選ばない
+ * 理由は `core/locale.ts`。
+ */
+export {
+  DEFAULT_LOCALE,
+  LOCALES,
+  resolveLocale,
+  siteLocale,
+  type Locale,
+} from './core/locale.ts';
+
 /** 日付整形。テーマが `SiteConfig.timeZone` を渡して使う。 */
 export { createDateFormat, type DateFormat } from './core/date.ts';
 

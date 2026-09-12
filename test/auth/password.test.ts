@@ -14,6 +14,8 @@ const PASSWORD = 'correct-horse-battery-staple';
 
 const CONTEXT: AuthContext = {
   siteName: 'テストのブログ',
+  // 文言の検査は英語の表で行う（言語ごとの表が揃っていることは locale.test.ts）。
+  locale: 'en',
   adminUrl: '/blog/admin/',
   loginUrl: '/blog/admin/login',
   logoutUrl: '/blog/admin/logout',
@@ -96,6 +98,21 @@ describe('passwordAuth のログイン', () => {
     // 認証の手前の画面。検索にも共有キャッシュにも載せない。
     expect(response.headers.get('cache-control')).toBe('no-store');
     expect(response.headers.get('x-robots-tag')).toBe('noindex');
+  });
+
+  /**
+   * **ログイン画面も設定の言語で出る。** core が配る唯一の画面なので、ここだけ
+   * 英語のままだと、日本語のブログの管理者が英語の画面に当たる。
+   */
+  it('設定が日本語なら、ログイン画面も日本語で出る', async () => {
+    const response = (await adapter.handle!(new Request(url(CONTEXT.loginUrl)), {
+      ...CONTEXT,
+      locale: 'ja',
+    }))!;
+    const body = await response.text();
+    expect(body).toContain('<html lang="ja">');
+    expect(body).toContain('ログイン');
+    expect(body).toContain('パスワード');
   });
 
   it('既に入れている人がログイン画面を開いたら管理画面へ送る', async () => {

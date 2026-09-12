@@ -13,7 +13,7 @@ import type {
   TagView,
 } from '../core/theme.ts';
 import { layout } from './layout.ts';
-import { TEXT } from './text.ts';
+import { textForSite, type Text } from './text.ts';
 
 /**
  * `html` は値に Promise が混ざると Promise を返す。組み立ての途中では
@@ -96,12 +96,13 @@ function postMeta(
   post: PostSummaryView,
   options: { updated?: boolean } = {},
 ): Html {
+  const text = textForSite(site);
   return html`<div class="post-meta">
     ${post.publishedAt ? postDate(site, post.publishedAt) : ''}
     ${options.updated && post.publishedAt && isUpdated(site, post.publishedAt, post.updatedAt)
-      ? postDate(site, post.updatedAt, TEXT.updatedPrefix)
+      ? postDate(site, post.updatedAt, text.updatedPrefix)
       : ''}
-    ${tagChips(post.tags)} ${post.isDraft ? html`<span class="tag">${TEXT.draft}</span>` : ''}
+    ${tagChips(post.tags)} ${post.isDraft ? html`<span class="tag">${text.draft}</span>` : ''}
   </div>`;
 }
 
@@ -119,12 +120,12 @@ function postList(site: SiteConfig, posts: readonly PostSummaryView[]): Html {
 }
 
 /** ページ送り。1 ページしか無ければ何も出さない。 */
-function pager(pagination: Pagination): Html | '' {
+function pager(pagination: Pagination, text: Text): Html | '' {
   if (pagination.totalPages <= 1) return '';
   return html`<nav class="pager">
-    ${pagination.prevUrl ? html`<a rel="prev" href="${pagination.prevUrl}">${TEXT.newer}</a>` : ''}
+    ${pagination.prevUrl ? html`<a rel="prev" href="${pagination.prevUrl}">${text.newer}</a>` : ''}
     <span class="muted">${pagination.page} / ${pagination.totalPages}</span>
-    ${pagination.nextUrl ? html`<a rel="next" href="${pagination.nextUrl}">${TEXT.older}</a>` : ''}
+    ${pagination.nextUrl ? html`<a rel="next" href="${pagination.nextUrl}">${text.older}</a>` : ''}
   </nav>`;
 }
 
@@ -133,11 +134,12 @@ export function indexPage(
   posts: readonly PostSummaryView[],
   pagination: Pagination,
 ): Promise<string> {
+  const text = textForSite(context.site);
   return layout(
     context,
     {
       // 2 ページ目以降はページ番号を題に入れる。同じ題が並ぶと検索結果で見分けが付かない。
-      page: pagination.page > 1 ? TEXT.page(pagination.page) : undefined,
+      page: pagination.page > 1 ? text.page(pagination.page) : undefined,
       brandIsHeading: pagination.page === 1,
       pagination,
     },
@@ -155,11 +157,11 @@ export function indexPage(
     // 無いうちは読み手もいない）。
     html`${posts.length === 0
       ? html`<p class="post-summary">
-          ${TEXT.noPosts}
-          <a href="${context.urls.admin()}" rel="nofollow">${TEXT.writeFirstPost}</a>
+          ${text.noPosts}
+          <a href="${context.urls.admin()}" rel="nofollow">${text.writeFirstPost}</a>
         </p>`
       : postList(context.site, posts)}
-    ${pager(pagination)}`,
+    ${pager(pagination, text)}`,
   );
 }
 
@@ -189,25 +191,27 @@ export function tagPage(
   posts: readonly PostSummaryView[],
   pagination: Pagination,
 ): Promise<string> {
-  const label = TEXT.tagPage(tag.name);
-  const page = pagination.page > 1 ? `${label} — ${TEXT.page(pagination.page)}` : label;
+  const text = textForSite(context.site);
+  const label = text.tagPage(tag.name);
+  const page = pagination.page > 1 ? `${label} — ${text.page(pagination.page)}` : label;
   return layout(
     context,
     { page, pagination },
     html`<h1 class="post-title">${tag.name}</h1>
       ${posts.length === 0
-        ? html`<p class="post-summary">${TEXT.noPostsInTag}</p>`
+        ? html`<p class="post-summary">${text.noPostsInTag}</p>`
         : postList(context.site, posts)}
-      ${pager(pagination)}`,
+      ${pager(pagination, text)}`,
   );
 }
 
 export function notFoundPage(context: PageContext): Promise<string> {
+  const text = textForSite(context.site);
   return layout(
     context,
-    { page: TEXT.notFoundTitle },
+    { page: text.notFoundTitle },
     html`<h1>404</h1>
-      <p class="post-summary">${TEXT.notFoundBody}</p>
-      <p><a href="${context.urls.index()}">${TEXT.backToIndex}</a></p>`,
+      <p class="post-summary">${text.notFoundBody}</p>
+      <p><a href="${context.urls.index()}">${text.backToIndex}</a></p>`,
   );
 }

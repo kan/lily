@@ -5,6 +5,7 @@
  * Deploy to Cloudflare は Access を自動プロビジョニングできないので、OSS の
  * 標準構成では別のアダプタが既定になる。だから core に Access を焼き付けない。
  */
+import type { Locale } from '../locale.ts';
 
 export type AuthUser = {
   /** 一意な識別子。Access なら JWT の `sub`。 */
@@ -32,6 +33,11 @@ export type AuthResult =
 export type AuthContext = {
   /** 画面に出すサイト名。 */
   readonly siteName: string;
+  /**
+   * 画面の文言の言語。**決めるのは `core/locale.ts` の `siteLocale()`** で、
+   * 標準テーマと同じ規則（`SiteConfig.uiLang`、無ければ `lang`）。
+   */
+  readonly locale: Locale;
   /** 管理画面の入口。**ログインが通ったら戻る先。** */
   readonly adminUrl: string;
   /** ログイン画面の URL。**このパスに来た要求だけ**が `handle()` に渡る。 */

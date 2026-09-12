@@ -11,7 +11,7 @@ import { ADMIN_LINK_CLASS, ADMIN_LINK_SCRIPT } from '../core/admin-contract.ts';
 import type { SiteConfig } from '../core/config.ts';
 import type { ImageView, PageContext, Pagination } from '../core/theme.ts';
 import { THEME_INIT, THEME_TOGGLE } from './client.ts';
-import { TEXT } from './text.ts';
+import { textForSite } from './text.ts';
 
 export type LayoutOptions = {
   /** ページ名。トップは省略してサイト名だけにする。 */
@@ -60,6 +60,7 @@ export async function layout(
   body: HtmlEscapedString | Promise<HtmlEscapedString>,
 ): Promise<string> {
   const { site, urls, canonicalUrl } = context;
+  const text = textForSite(site);
   const title = pageTitle(site.name, options.page);
   const description = options.description ?? site.description;
   const brand = options.brandIsHeading ? 'h1' : 'p';
@@ -114,12 +115,12 @@ export async function layout(
       <header class="site-header">
         <${brand} class="brand"><a href="${urls.index()}">${site.name}</a></${brand}>
         <nav>
-          <a href="${urls.feed('rss')}">${TEXT.rss}</a>
+          <a href="${urls.feed('rss')}">${text.rss}</a>
           <!-- 管理画面へのリンク。**全員に同じ HTML を配り**、管理画面を開いた
                ことがある端末でだけ client.ts が hidden 属性を外す。訪問者ごとに
                HTML を変えると、共有キャッシュに載ったそれが読者に配られる。 -->
           <a class="${ADMIN_LINK_CLASS}" href="${adminUrl}" rel="nofollow" hidden
-            >${options.adminUrl ? TEXT.editThisPost : TEXT.admin}</a
+            >${options.adminUrl ? text.editThisPost : text.admin}</a
           >
           <!-- ラベルは属性で持たせる。**文言をスクリプトの中に書かない**ので、
                テーマを写して訳すときに触るのはこのファイルだけで済む。
@@ -128,9 +129,9 @@ export async function layout(
           <button
             class="theme-toggle"
             type="button"
-            aria-label="${TEXT.toggleTheme}"
-            data-label-light="${TEXT.switchToLight}"
-            data-label-dark="${TEXT.switchToDark}"
+            aria-label="${text.toggleTheme}"
+            data-label-light="${text.switchToLight}"
+            data-label-dark="${text.switchToDark}"
           >
             ${raw(MOON_ICON)}${raw(SUN_ICON)}
           </button>

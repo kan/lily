@@ -181,6 +181,38 @@ describe('標準テーマ', () => {
     expect(withPost).not.toContain('Write the first one');
   });
 
+  /**
+   * **文言の言語は `uiLang`（無ければ `lang`）で決まる。** 読み手の
+   * `Accept-Language` では選ばない —— 公開ページは共有キャッシュに載るので、
+   * ある読者に返した言語が次の読者へ配られる（`core/locale.ts`）。
+   */
+  it('日本語の設定なら文言が日本語で出る', async () => {
+    const ja = createLily({
+      site: { ...ROOT_SITE_CONFIG, lang: 'ja' },
+      mountPath: '/',
+      theme: defaultTheme,
+      auth: () => ({ name: 'stub', authenticate: async () => ({ ok: false, reason: 'x' }) }),
+    });
+    const html = await (await ja.fetch(new Request(`${ROOT_SITE}/`), env)).text();
+    expect(html).toContain('まだ記事がありません。');
+    expect(html).toContain('最初の 1 本を書く');
+    // **配信する中身の言語は `lang` のまま。** 文言を訳しても `<html lang>` は動かない。
+    expect(html).toContain('<html lang="ja">');
+  });
+
+  it('uiLang は lang より優先する', async () => {
+    const mixed = createLily({
+      // 日本語の記事を、英語の画面で出す deployment。
+      site: { ...ROOT_SITE_CONFIG, lang: 'ja', uiLang: 'en' },
+      mountPath: '/',
+      theme: defaultTheme,
+      auth: () => ({ name: 'stub', authenticate: async () => ({ ok: false, reason: 'x' }) }),
+    });
+    const html = await (await mixed.fetch(new Request(`${ROOT_SITE}/`), env)).text();
+    expect(html).toContain('No posts yet.');
+    expect(html).toContain('<html lang="ja">');
+  });
+
   it('読めない lang でもページを落とさない', async () => {
     // `lang` は deployment の設定。`en_US` のような書き方は
     // `Intl.DateTimeFormat` が throw するので、日付のある全ページが 500 になりうる。

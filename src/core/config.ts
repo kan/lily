@@ -23,6 +23,17 @@ export type SiteConfig = {
    */
   readonly lang: string;
   /**
+   * **画面の文言の言語**（BCP 47）。省略すると `lang` を使う。
+   *
+   * `lang` は配信する中身の言語で、こちらは「次のページ」「下書き」のような
+   * テーマとログイン画面の文言。**普通は揃う**ので既定を分けないが、日本語の記事を
+   * 英語の chrome で出すような deployment はここで分ける。
+   *
+   * 表を持っている言語（`core/locale.ts` の `LOCALES`）以外を渡すと英語に落ちる。
+   * **`Accept-Language` では選ばない**（理由は `core/locale.ts`）。
+   */
+  readonly uiLang?: string;
+  /**
    * 日付を切り出すタイムゾーン（IANA 名。`'Asia/Tokyo'`）。
    *
    * **core は日付を整形しない。** これを読むのは管理画面（`src/admin/date.ts`）と、

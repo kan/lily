@@ -122,6 +122,7 @@ export function passwordAuth(options: PasswordAuthOptions): AuthAdapter {
       siteName: context.siteName,
       action: context.loginUrl,
       minLength: MIN_PASSWORD_LENGTH,
+      locale: context.locale,
       message,
       unusable: unusable ?? undefined,
       secretName: options.secretName,
