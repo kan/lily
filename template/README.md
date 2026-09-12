@@ -2,9 +2,25 @@
 
 A blog on Cloudflare Workers, running [lily](https://github.com/kan/lily) (`@kanf/lily`).
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/kan/lily/tree/main/template)
+
 **A Worker, a D1 database and an R2 bucket is the whole stack.** Posts live in D1, images
 live in R2, and the admin UI ships prebuilt inside the package — there is no build step for
 it, and no Vue toolchain on your side.
+
+## Deploying with the button
+
+The button copies this directory into a repository of your own, creates the D1 database and
+the R2 bucket from the bindings in `wrangler.jsonc`, asks for the secrets listed in
+`.dev.vars.example` (that is where the `ADMIN_PASSWORD` field comes from), and runs
+`npm run deploy` — which applies lily's migrations and then deploys.
+
+**A Cloudflare account is all it needs.** Nothing has to be created beforehand, and no
+resource ID is ever pasted into the repository: the bindings are referenced by name.
+
+Afterwards, set `site.url` in `src/config.ts` to the URL you are actually serving from (your
+domain, or the `*.workers.dev` one) and push — it is the origin every absolute URL in the
+feeds and `<link rel="canonical">` is built from.
 
 ## Running it locally
 
@@ -20,7 +36,9 @@ falls back to the `localhostOnly` adapter, which only lets a request through whe
 `localhost` or `127.0.0.1`. **That fallback cannot pass in production**, so forgetting the
 secret does not leave the door open — it leaves it shut.
 
-## Deploying
+## Deploying from your machine
+
+Without the button, the same thing by hand:
 
 ```bash
 npx wrangler login
@@ -31,14 +49,9 @@ npx wrangler secret put ADMIN_PASSWORD    # 12 characters or more
 Every deploy after that is `npm run deploy`.
 
 **The two are not the same order, on purpose.** The D1 database and the R2 bucket are created
-during the first `wrangler deploy`, from the bindings in `wrangler.jsonc` — no resource IDs go
-in this repository — so on the first run there is nothing to migrate yet and the deploy has to
-come first. From then on the migrations run **before** the deploy, so new code never meets an
-old schema.
-
-Then set `site.url` in `src/config.ts` to the URL you are actually serving from (your domain,
-or the `*.workers.dev` one) and deploy again — it is the origin every absolute URL in the
-feeds and `<link rel="canonical">` is built from.
+during the first `wrangler deploy`, from the bindings in `wrangler.jsonc`, so on the first run
+there is nothing to migrate yet and the deploy has to come first. From then on the migrations
+run **before** the deploy, so new code never meets an old schema.
 
 ## What is where
 

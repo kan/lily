@@ -24,11 +24,18 @@ routes, the database schema, a prebuilt admin UI and a default theme.
 - **Found a security hole: [`SECURITY.md`](./SECURITY.md)** — report it privately, not as an
   issue. That file also says what lily does and does not claim to protect.
 
-> **A working minimum lives in [`template/`](./template)** — a Worker, a config file, a
-> `wrangler.jsonc` and a `.dev.vars.example`, ready to `npm install && npm run dev`. The rest
-> of this page explains what is in it. Setup is still being smoothed out:
-> [#3](https://github.com/kan/lily/issues/3) turns that directory into a *Deploy to
-> Cloudflare* button and [#7](https://github.com/kan/lily/issues/7) adds `npx lily init`.
+## Starting a blog with it
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/kan/lily/tree/main/template)
+
+The button copies [`template/`](./template) into a repository of your own, creates the D1
+database and the R2 bucket, asks for an admin password, and deploys. **A Cloudflare account is
+all it takes** — nothing to create beforehand, and no resource ID ever pasted into a config
+file.
+
+That same directory is what `npm install && npm run dev` runs locally, and the rest of this
+page explains what is in it. ([#7](https://github.com/kan/lily/issues/7) will add
+`npx lily init` for starting from a prompt instead.)
 
 ## What you get
 
