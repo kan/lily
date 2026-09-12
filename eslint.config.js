@@ -43,7 +43,7 @@ export default defineConfig(
   // Worker 側。**型情報を使う。**
   {
     files: ['**/*.ts'],
-    ignores: ['src/admin/**', 'vite.config.ts'],
+    ignores: ['src/admin/**', 'vite.config.ts', 'template/**'],
     extends: [js.configs.recommended, tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       parserOptions: {
@@ -90,9 +90,11 @@ export default defineConfig(
     },
   },
 
-  // 管理画面（`.ts` と `.vue`）とそのビルド設定。構文の規則だけ。
+  // 管理画面（`.ts` と `.vue`）とそのビルド設定、それと利用側のテンプレート。
+  // **構文の規則だけ。** テンプレートは自分の `tsconfig.json` と `Env`（`wrangler
+  // types` の生成物）を持つ別プロジェクトなので、lily の型情報からは見えない。
   {
-    files: ['src/admin/**/*.{ts,vue}', 'vite.config.ts'],
+    files: ['src/admin/**/*.{ts,vue}', 'vite.config.ts', 'template/**/*.ts'],
     // **`flat/essential` まで。** その上（`flat/recommended`）の大半は整形の規則
     // （属性を 1 行に何個まで、など）で、このリポジトリはフォーマッタを入れていない。
     // 機械が決めた形を人手で揃える仕事にしかならない。

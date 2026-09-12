@@ -33,11 +33,16 @@
     "./test-support": "./dist/lib/test-support.js",
     "./package.json": "./package.json"
   },
-  "//files": "migrations は利用側の wrangler.jsonc が migrations_dir で直接指す (コピーしない)。dist/lib が配る本体、dist/admin はビルド済みの管理画面",
+  "//bin": "静的アセットの合流 (利用側の public + lily の dist/admin)。場所を知っているのは lily なので、利用側に同じコピー処理を書かせない。素の .mjs にしてあるのは、配るもののうちこれだけが Node で走るため (dist/lib は Workers 向けの emit)",
+  "bin": {
+    "lily-assets": "./bin/lily-assets.mjs"
+  },
+  "//files": "migrations は利用側の wrangler.jsonc が migrations_dir で直接指す (コピーしない)。dist/lib が配る本体、dist/admin はビルド済みの管理画面、bin は利用側のビルドが呼ぶコマンド",
   "files": [
     "dist/lib",
     "migrations",
-    "dist/admin"
+    "dist/admin",
+    "bin"
   ],
   "scripts": {
     "//build": "配るものを 2 つとも作る。管理画面 (vite → dist/admin) と本体 (tsc → dist/lib)。publish 前に prepack が走らせる",

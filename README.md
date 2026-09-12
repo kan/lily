@@ -24,9 +24,11 @@ routes, the database schema, a prebuilt admin UI and a default theme.
 - **Found a security hole: [`SECURITY.md`](./SECURITY.md)** — report it privately, not as an
   issue. That file also says what lily does and does not claim to protect.
 
-> **Setup is being reworked.** [#7](https://github.com/kan/lily/issues/7) adds
-> `npx lily init`, and [#3](https://github.com/kan/lily/issues/3) adds a *Deploy to
-> Cloudflare* template. Until those land, what follows is what a consumer writes by hand.
+> **A working minimum lives in [`template/`](./template)** — a Worker, a config file, a
+> `wrangler.jsonc` and a `.dev.vars.example`, ready to `npm install && npm run dev`. The rest
+> of this page explains what is in it. Setup is still being smoothed out:
+> [#3](https://github.com/kan/lily/issues/3) turns that directory into a *Deploy to
+> Cloudflare* button and [#7](https://github.com/kan/lily/issues/7) adds `npx lily init`.
 
 ## What you get
 
@@ -98,17 +100,26 @@ export const lily = createLily<Env>({
   // No secret means local only (leave it out of `.dev.vars` and you fall through to
   // localhost). **Forgetting the secret in production does not open the door**: neither
   // adapter lets anyone in.
-  auth: (env) => (env.ADMIN_PASSWORD ? passwordAuth({ password: env.ADMIN_PASSWORD }) : localhostOnly()),
+  auth: (env) =>
+    env.ADMIN_PASSWORD
+      ? passwordAuth({ password: env.ADMIN_PASSWORD, secretName: 'ADMIN_PASSWORD' })
+      : localhostOnly(),
 });
 ```
+
+That is the shape, abridged. **The version that runs is
+[`template/src/config.ts`](./template/src/config.ts)** — same file with the Bluesky
+credentials and the type for the secrets, which `wrangler types` cannot know about because
+they are not in `wrangler.jsonc`.
 
 Your `wrangler.jsonc` needs these entries.
 
 ```jsonc
 {
   // lily owns the schema. **Do not copy the migrations** — point at the directory.
+  // No resource IDs: `wrangler deploy` creates what the bindings name.
   "d1_databases": [{
-    "binding": "DB", "database_name": "...", "database_id": "...",
+    "binding": "DB", "database_name": "my-blog",
     "migrations_dir": "./node_modules/@kanf/lily/migrations"
   }],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "..." }],
@@ -120,8 +131,20 @@ Your `wrangler.jsonc` needs these entries.
 }
 ```
 
-The admin UI is **shipped prebuilt**, so there is no Vue toolchain on your side: copy
-`node_modules/@kanf/lily/dist/admin` into the directory you serve.
+Again, the whole file — with the optional backup bucket and Images binding written out as
+comments — is [`template/wrangler.jsonc`](./template/wrangler.jsonc).
+
+The admin UI is **shipped prebuilt**, so there is no Vue toolchain on your side. Merging it
+with your own static files is one command, which comes with the package:
+
+```jsonc
+// package.json — puts public/ and lily's admin UI into dist/
+"build": "lily-assets dist public"
+```
+
+`lily-assets` lives in lily because lily is what knows where its admin build is, whether that
+build is complete, and whether it is stale — copy that logic into every consumer and it goes
+out of date the day lily changes shape.
 
 Then apply the migrations and set the password:
 
@@ -258,7 +281,10 @@ The password lives in a Worker secret; a successful login gets an HMAC-signed co
 is nothing to store** — no D1 table, no migration.
 
 ```ts
-auth: (env) => (env.ADMIN_PASSWORD ? passwordAuth({ password: env.ADMIN_PASSWORD }) : localhostOnly()),
+auth: (env) =>
+  env.ADMIN_PASSWORD
+    ? passwordAuth({ password: env.ADMIN_PASSWORD, secretName: 'ADMIN_PASSWORD' })
+    : localhostOnly(),
 ```
 
 ```bash

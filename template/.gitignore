@@ -1,0 +1,11 @@
+node_modules/
+
+# `npm run build` が作る配信物（`public/` と lily の管理画面の合流先）。
+dist/
+
+# wrangler の作業場と生成物。
+.wrangler/
+worker-configuration.d.ts
+
+# **手元の secret。** 中身は `.dev.vars.example` を写して入れる。
+.dev.vars

@@ -50,6 +50,10 @@ exported from it needs a thought about who is importing it.
 
 ```
 migrations/   D1 migrations, plain SQL. The only definition of the schema
+bin/          **Ships.** lily-assets: merges a consumer's public/ and the prebuilt admin
+              UI into one directory. Plain .mjs because it runs on Node, unlike dist/lib
+template/     A minimal consumer project (does not ship on npm). What a new blog starts
+              from; #3 turns it into a Deploy to Cloudflare button
 src/
   index.ts    The public API. Consumers import nothing else
   core/       The CMS itself (knows nothing site-specific)

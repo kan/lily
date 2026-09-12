@@ -106,6 +106,12 @@ issue #8 で入れたもの。**設定はコードに無い**ので、ここに�
   テスト用の静的アセットだけで、**`dist/lib` は作らない**（テストは `src/` を直接読む）
 - **`src/index.ts` が境界。** ここに載っていないものは利用側から読まれない前提で動かせる。
   載っているものを変えるときは、利用側のことを考える
+- **利用側に写させない。** 管理画面の場所も、ビルドできているかの判定も、`dist/lib` の
+  鮮度も lily の都合なので、`bin/lily-assets.mjs`（パッケージに入る）が持つ。
+  利用側の `package.json` に書くのは `"build": "lily-assets dist public"` だけ
+- **`template/` は利用側の最小構成**（npm には入らない）。lily を直したら、ここが
+  まだ通るかを見る。確かめ方は `npm pack` → 別のディレクトリで `npm install <tgz>` →
+  `npm run build && npm run typecheck && npx wrangler deploy --dry-run`
 - **`migrations/` がスキーマの正。** 利用側は `node_modules/@kanf/lily/migrations` を
   `migrations_dir` で直接指す。リリースに入った migration は他人が本番の D1 に流すものに
   なるので、**追加のみで書く。** 利用側のデプロイは「マイグレーションが先、`wrangler deploy`

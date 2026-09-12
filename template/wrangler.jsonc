@@ -1,0 +1,56 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+
+  // 名前はこの Worker のもの。**変えてよい**（デプロイ先の名前になる）。
+  "name": "my-blog",
+  "main": "./src/index.ts",
+  "compatibility_date": "2026-09-01",
+
+  // **リソース ID を手で埋めない。** Deploy to Cloudflare も `wrangler deploy` も、
+  // ここに無ければ作って binding に結びつける。コードが知ってよいのは binding 名
+  // (`DB` / `MEDIA` / `ASSETS`) だけ。
+  //
+  // **スキーマの正は lily。** migration をコピーせず、パッケージの中を直接指す。
+  // 当てるのは `wrangler d1 migrations apply DB`（`npm run db:migrate`）。
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "my-blog",
+      "migrations_dir": "./node_modules/@kanf/lily/migrations"
+    }
+  ],
+
+  // 添付の原本。**画像はここに入り、配信 URL は lily が組む。**
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "my-blog-media" }],
+
+  // 管理画面と、`public/` に置いた静的ファイルの置き場。`npm run build`
+  // (`lily-assets`) が両方を `dist/` に合流させる。
+  //
+  // **`run_worker_first` を付けること。** 付けないと `/` が静的アセットとして
+  // 解決され、記事も一覧も Worker まで届かない。
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist",
+    "run_worker_first": true
+  },
+
+  // テーマの CSS は Worker がバンドルした文字列として配る。**`fallthrough` を
+  // 付けること。** 付けないと wrangler の既定ルール（`**/*.txt` `**/*.html`
+  // `**/*.sql`）がまるごと無効になる。
+  "rules": [{ "type": "Text", "globs": ["**/*.css"], "fallthrough": true }],
+
+  // ---------------------------------------------------------------------------
+  // ここから下は任意。**無くても記事の投稿・配信・添付・portable な export は
+  // 成立する。**
+  //
+  // 毎日の控え（README の「Backups」）。別バケットに置くのは、添付と同じ場所に
+  // 入れると誤削除やライフサイクル規則の事故で本体と控えが同時に消えるため。
+  //   "r2_buckets" に { "binding": "BACKUP", "bucket_name": "my-blog-backup" } を足し、
+  //   "triggers": { "crons": ["30 18 * * *"] },
+  //
+  // 画像の最適化（Cloudflare Images）。**無い前提で動く**ので、後から有効にすると
+  // 配信が良くなる追加の層として扱う。有効にするなら次の 1 行と、`config.ts` の
+  // `media: { images: true }`。
+  //   "images": { "binding": "IMAGES" },
+  // ---------------------------------------------------------------------------
+}
