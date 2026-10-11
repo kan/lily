@@ -3,6 +3,8 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { client } from '../api.ts';
 import { caretPoint } from '../caret.ts';
 import { t } from '../i18n.ts';
+import { listEnter, listIndent, replacement } from '../../core/render/list-edit.ts';
+import type { Edited } from '../../core/render/list-edit.ts';
 import { blockPadding, imageMarkdown, inLinkUrl } from '../../core/render/markdown.ts';
 import Icon from './Icon.vue';
 
@@ -125,6 +127,72 @@ function prefixLine(mark: string): void {
   const at = el.selectionStart + mark.length;
   emit('update:modelValue', value.slice(0, lineStart) + mark + value.slice(lineStart));
   reselect(at, at);
+}
+
+/**
+ * リストの上での Enter / Tab / Shift+Tab。何をどう書き換えるかは
+ * `core/render/list-edit.ts` が決め、ここはキーを渡して結果を入れるだけ。
+ *
+ * **変換中の Enter は確定であって改行ではない。** `isComposing` を見ないと、
+ * 日本語を確定するたびに項目が増える。`keyCode === 229` は Safari 用
+ * （確定の keydown が `isComposing: false` で届く）。
+ *
+ * **Tab を取るのはリストの行の上だけ。** それ以外では既定のフォーカス移動を残す
+ * （キーボードだけで入力欄から出られなくなる）。
+ */
+function onKeydown(event: KeyboardEvent): void {
+  if (event.isComposing || event.keyCode === 229) return;
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  const el = area.value;
+  if (!el) return;
+
+  let edited: Edited | null;
+  if (event.key === 'Enter' && !event.shiftKey) edited = listEnter(el.value, selection());
+  else if (event.key === 'Tab') edited = listIndent(el.value, selection(), event.shiftKey ? -1 : 1);
+  else return;
+
+  if (edited === null) return;
+  event.preventDefault();
+  applyEdit(el, edited);
+}
+
+/**
+ * 編集の結果を入力欄へ入れる。
+ *
+ * **`execCommand` で差分だけを入れる。** `value` を代入し直すとブラウザの取り消し
+ * 履歴が消えるので、キー入力のたびに通るここでそれをやると Ctrl+Z が効かなくなる。
+ * `execCommand` は `input` を発火するので、本文は textarea の `@input` から出ていく。
+ * 使えない環境では代入に落とす（取り消しは効かないが、編集は通る）。
+ */
+function applyEdit(el: HTMLTextAreaElement, edited: Edited): void {
+  if (edited.value !== el.value) {
+    const { start, end, text } = replacement(el.value, edited.value);
+    el.setSelectionRange(start, end);
+    const done =
+      text === '' ? document.execCommand('delete') : document.execCommand('insertText', false, text);
+    if (!done || el.value !== edited.value) {
+      emit('update:modelValue', edited.value);
+      reselect(edited.start, edited.end);
+      return;
+    }
+  }
+  el.setSelectionRange(edited.start, edited.end);
+}
+
+/**
+ * 入力欄の変更を本文へ出す。
+ *
+ * **取り消しのあとに残る選択は畳む。** `applyEdit` は置き換える範囲を選んでから
+ * 入れるので、ブラウザはそれを取り消すと元の範囲（リストの印や字下げ）を選んだ
+ * 状態に戻す。そのまま打つと印が上書きされる。
+ */
+function onInput(event: Event): void {
+  const el = event.target as HTMLTextAreaElement;
+  const { inputType } = event as InputEvent;
+  if (inputType === 'historyUndo' || inputType === 'historyRedo') {
+    el.setSelectionRange(el.selectionEnd, el.selectionEnd);
+  }
+  emit('update:modelValue', el.value);
 }
 
 /** 前後に空行を空けてブロックを差し込む (表・水平線)。 */
@@ -444,9 +512,10 @@ function isHttpUrl(text: string): boolean {
     <textarea
       ref="area"
       :value="modelValue"
-      @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
+      @input="onInput"
       @paste="onPaste"
       @scroll="placePopup"
+      @keydown="onKeydown"
       @keydown.esc="justPasted = null"
     />
     <!-- 貼った直後だけ、貼ったリンクの真下に出す。既定はテキストリンクのまま。

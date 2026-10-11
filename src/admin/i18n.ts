@@ -297,7 +297,7 @@ const en: AdminText = {
     makeCardTitle: 'Turn it into a block with the title, description and thumbnail',
     carding: 'Fetching…',
     closeEsc: 'Close (Esc)',
-    help: 'Images go in by drag and drop, by pasting, or with the button. Pasting a URL makes a link with its title.',
+    help: 'Images go in by drag and drop, by pasting, or with the button. Pasting a URL makes a link with its title. In a list, Enter continues it and Tab / Shift+Tab change the level.',
   },
   settings: {
     title: 'Settings',
@@ -435,7 +435,7 @@ const ja: AdminText = {
     makeCardTitle: '題と説明とサムネのブロックにする',
     carding: '取りに行っています…',
     closeEsc: '閉じる (Esc)',
-    help: '画像はドラッグ＆ドロップ・貼り付け・ボタンで入る。URL を貼るとタイトル付きのリンクになる。',
+    help: '画像はドラッグ＆ドロップ・貼り付け・ボタンで入る。URL を貼るとタイトル付きのリンクになる。リストの上では Enter で次の項目、Tab / Shift+Tab で段を下げる / 上げる。',
   },
   settings: {
     title: '設定',
