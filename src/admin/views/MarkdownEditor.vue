@@ -5,7 +5,12 @@ import { caretPoint } from '../caret.ts';
 import { t } from '../i18n.ts';
 import { listEnter, listIndent, replacement } from '../../core/render/list-edit.ts';
 import type { Edited } from '../../core/render/list-edit.ts';
-import { blockPadding, imageMarkdown, inLinkUrl } from '../../core/render/markdown.ts';
+import {
+  blockPadding,
+  carriedPosition,
+  imageMarkdown,
+  inLinkUrl,
+} from '../../core/render/markdown.ts';
 import Icon from './Icon.vue';
 
 const props = defineProps<{
@@ -102,6 +107,81 @@ function reselect(start: number, end: number): void {
 }
 
 /**
+ * 本文の `[start, end)` を差し替える。**待ったあと（題・カード・画像が届いたあと）は
+ * これを使う。**
+ *
+ * **カーソルは利用者のもの。** 待っているあいだに別の場所を選び直していたら、その
+ * 選択を残す（長さが変わったぶんだけずらす。決め方は `carriedPosition`）。
+ * `reselect` と違って `focus()` も呼ばない —— 題の欄へ移った人を本文へ連れ戻さない。
+ *
+ * **その場で終える。** `reselect` は次のフレームでカーソルを置くので、予約が残って
+ * いるあいだの操作（全選択して打ち直す）に割り込んで、置き換えを追記に変えてしまう。
+ */
+function replaceRange(start: number, end: number, text: string): void {
+  const el = area.value;
+  if (!el) return;
+
+  const carry = (position: number): number => carriedPosition(position, start, end, text.length);
+  const selected = [carry(el.selectionStart), carry(el.selectionEnd)] as const;
+  const direction = el.selectionDirection;
+
+  el.setRangeText(text, start, end);
+  el.setSelectionRange(selected[0], selected[1], direction);
+  follow(start, end, text.length);
+  emit('update:modelValue', el.value);
+}
+
+/**
+ * 待っているあいだ追いかけている位置。**アップロード中の画像を入れる場所。**
+ *
+ * 待つ前に捕まえた位置は、そのあいだに前の行を打たれるとずれる。ずれたまま入れると
+ * 別の記法の途中に割り込む。だから本文が変わるたびに、カーソルと同じ決め方
+ * （`carriedPosition`）で運ぶ。
+ */
+const following = new Set<Range>();
+
+function follow(start: number, end: number, length: number): void {
+  for (const range of following) {
+    range.start = carriedPosition(range.start, start, end, length);
+    range.end = carriedPosition(range.end, start, end, length);
+  }
+}
+
+/**
+ * 日本語の変換が終わるまで待つ。**変換中に本文を差し替えると、未確定の字が壊れる。**
+ *
+ * 題や画像を待つあいだに別の場所を打っている人は、日本語ならほぼ変換の途中にいる。
+ * 待ったあとの差し替えは、どれもこれを通してから行う。
+ *
+ * **`compositionend` の次のタスクまで待つ。** 確定の `input` があとから届くので、
+ * その場で進めると確定前の本文を見て位置を決めることになる。
+ */
+let composing = false;
+
+function setComposing(now: boolean): void {
+  composing = now;
+}
+
+function settled(): Promise<void> {
+  const el = area.value;
+  if (!composing || !el) return Promise.resolve();
+  return new Promise((resolve) => {
+    el.addEventListener('compositionend', () => setTimeout(resolve), { once: true });
+  });
+}
+
+/**
+ * フォーカスが宙に浮いていたら本文へ戻す。**誰かが持っているなら取らない**
+ * （題の欄へ移った人を連れ戻さない）。
+ *
+ * 浮くのは、ファイルを落とした直後と、キーボードで「カードにする」を押したあと
+ * （押したボタンごとポップアップが消える）。
+ */
+function refocusIfLost(): void {
+  if (document.activeElement === document.body) area.value?.focus();
+}
+
+/**
  * 選択範囲を包む / カーソル位置に差し込む。
  *
  * `at` を渡すとその位置に入れる。**textarea の value を代入し直すとカーソルが
@@ -192,6 +272,10 @@ function onInput(event: Event): void {
   if (inputType === 'historyUndo' || inputType === 'historyRedo') {
     el.setSelectionRange(el.selectionEnd, el.selectionEnd);
   }
+  if (following.size > 0) {
+    const edit = replacement(props.modelValue, el.value);
+    follow(edit.start, edit.end, edit.text.length);
+  }
   emit('update:modelValue', el.value);
 }
 
@@ -226,27 +310,31 @@ function insertFootnote(): void {
 /**
  * 画像を差し込む。
  *
- * **1 つ入れるごとに `nextTick` で props の更新を待つ。** 待たずに続けると
- * 古い本文を元に組み立てて、直前に入れたものを消してしまう。
+ * アップロードを待つあいだも本文は打てるので、入れるのは `replaceRange` で
+ * （打っている人のカーソルを画像の後ろへ連れていかない）。
  */
 async function insertFiles(files: readonly File[], at?: Range): Promise<void> {
-  let cursor = at ?? selection();
+  // 待つあいだに本文が動いても付いていくよう、入れる場所を追いかけさせる。
+  const cursor = { ...(at ?? selection()) };
+  following.add(cursor);
 
-  for (const file of files) {
-    const filename = await props.upload(file);
-    if (filename === null) continue;
+  try {
+    for (const file of files) {
+      const filename = await props.upload(file);
+      if (filename === null) continue;
+      await settled();
 
-    // 記事と同じディレクトリのファイルとして参照する。mount 依存の URL は書かない。
-    // 書き方 (空白を含むときの `<…>`) は renderer 側と対で core が持っている。
-    const text = imageMarkdown(filename);
-    const value = props.modelValue;
-    emit('update:modelValue', value.slice(0, cursor.start) + text + value.slice(cursor.end));
-
-    const next = cursor.start + text.length;
-    cursor = { start: next, end: next };
-    await nextTick();
+      // 記事と同じディレクトリのファイルとして参照する。mount 依存の URL は書かない。
+      // 書き方 (空白を含むときの `<…>`) は renderer 側と対で core が持っている。
+      const text = imageMarkdown(filename);
+      replaceRange(cursor.start, cursor.end, text);
+      // 末尾は `follow` が入れたものの後ろへ運んでいる。次の画像はそこから。
+      cursor.start = cursor.end;
+    }
+  } finally {
+    following.delete(cursor);
   }
-  reselect(cursor.start, cursor.end);
+  refocusIfLost();
 }
 
 function imagesOf(list: FileList | null | undefined): File[] {
@@ -331,9 +419,9 @@ async function onPaste(event: ClipboardEvent): Promise<void> {
   // **surround には通さない。** あれは選択範囲を読み直して包むので、完成形を
   // 渡すと選んだ文字が後ろに二重で残る。
   const inserted = `[${selected || text}](${text})`;
-  const pasted = props.modelValue.slice(0, start) + inserted + props.modelValue.slice(end);
-  emit('update:modelValue', pasted);
-  reselect(start + inserted.length, start + inserted.length);
+  // 貼ったのは利用者なので、ここだけはカーソルを置く（入れたリンクの直後）。
+  replaceRange(start, end, inserted);
+  area.value?.setSelectionRange(start + inserted.length, start + inserted.length);
   justPasted.value = { url: text, start, text: inserted };
 
   // 選んだ文字が題なら、取りに行く必要がない。
@@ -343,18 +431,17 @@ async function onPaste(event: ClipboardEvent): Promise<void> {
   if (!res.ok) return;
   const { title } = await res.json();
   if (title === null) return;
+  await settled();
 
   // **入れた場所を覚えておいて、そこだけ差し替える。** 本文から探して置き換えると、
   // 同じ URL を前にも貼っていたときに古い方が書き変わる。
   const current = props.modelValue;
   if (current.slice(start, start + inserted.length) !== inserted) return;
 
+  // **カーソルは置かない。** 取りに行くあいだに別の場所を打っていた人のものなので、
+  // 長さが変わったぶんずらすだけにする（issue #12）。
   const replaced = `[${title}](${text})`;
-  emit(
-    'update:modelValue',
-    current.slice(0, start) + replaced + current.slice(start + inserted.length),
-  );
-  reselect(start + replaced.length, start + replaced.length);
+  replaceRange(start, start + inserted.length, replaced);
 
   // 題が入って形が変わったので、カードの差し替え先も合わせる。**この貼り付けの
   // ものだけ**（待っているあいだに別の URL を貼られていたら触らない）。
@@ -382,6 +469,7 @@ async function toCard(): Promise<void> {
     carding.value = false;
   }
   if (html === null) return;
+  await settled();
 
   const current = props.modelValue;
   if (current.slice(target.start, target.end) !== target.text) return;
@@ -390,11 +478,10 @@ async function toCard(): Promise<void> {
   // リンクをそのまま替えると、カードが段落の中のインライン要素になる。
   const { before, after } = blockPadding(current, target.start, target.end);
   const block = `${before}${html}${after}`;
-  emit('update:modelValue', current.slice(0, target.start) + block + current.slice(target.end));
-
+  replaceRange(target.start, target.end, block);
   justPasted.value = null;
-  const at = target.start + block.length;
-  reselect(at, at);
+  await nextTick();
+  refocusIfLost();
 }
 
 function isHttpUrl(text: string): boolean {
@@ -513,6 +600,8 @@ function isHttpUrl(text: string): boolean {
       ref="area"
       :value="modelValue"
       @input="onInput"
+      @compositionstart="setComposing(true)"
+      @compositionend="setComposing(false)"
       @paste="onPaste"
       @scroll="placePopup"
       @keydown="onKeydown"

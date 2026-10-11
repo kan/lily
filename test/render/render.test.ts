@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { renderMarkdown, type RenderMedia } from '../../src/core/render/index.ts';
-import { blockPadding, imageMarkdown, inLinkUrl } from '../../src/core/render/markdown.ts';
+import {
+  blockPadding,
+  carriedPosition,
+  imageMarkdown,
+  inLinkUrl,
+} from '../../src/core/render/markdown.ts';
 import { linkCardHtml } from '../../src/core/link-card.ts';
 
 const MEDIA: readonly RenderMedia[] = [
@@ -337,6 +342,46 @@ describe('リンクカード', () => {
 
   it('空行を含まない (HTML ブロックが途中で切れる)', () => {
     expect(CARD).not.toMatch(/\n\s*\n/);
+  });
+});
+
+describe('carriedPosition (差し替えのあとのカーソル)', () => {
+  /**
+   * `[` `]` で差し替える範囲、`|` でカーソルを示す。`to` に差し替えたあとの本文を
+   * `|` 入りで返す。
+   */
+  function carry(marked: string, to: string): string {
+    const position = marked.replace(/[[\]]/g, '').indexOf('|');
+    const start = marked.replace(/[|\]]/g, '').indexOf('[');
+    const end = marked.replace(/[|[]/g, '').indexOf(']');
+    if (position === -1 || start === -1 || end === -1) throw new Error(`目印が足りない: ${marked}`);
+
+    const text = marked.replace(/[|[\]]/g, '');
+    const replaced = text.slice(0, start) + to + text.slice(end);
+    const moved = carriedPosition(position, start, end, to.length);
+    return `${replaced.slice(0, moved)}|${replaced.slice(moved)}`;
+  }
+
+  it('後ろにあれば、長さの差だけずれて同じ字の前に残る', () => {
+    expect(carry('先頭 [url] あと|がき', '長い題のリンク')).toBe('先頭 長い題のリンク あと|がき');
+    expect(carry('先頭 [長い題のリンク] あと|がき', 'url')).toBe('先頭 url あと|がき');
+  });
+
+  it('直後にいれば、差し替えたものの直後に残る (貼ったまま何もしなかった人)', () => {
+    expect(carry('先頭 [url]| あとがき', '題のリンク')).toBe('先頭 題のリンク| あとがき');
+  });
+
+  it('前にあれば動かない', () => {
+    expect(carry('先|頭 [url] あとがき', '題のリンク')).toBe('先|頭 題のリンク あとがき');
+    expect(carry('先頭 |[url] あとがき', '題のリンク')).toBe('先頭 |題のリンク あとがき');
+  });
+
+  it('中にあれば、差し替えたものの末尾へ', () => {
+    expect(carry('先頭 [u|rl] あとがき', '題のリンク')).toBe('先頭 題のリンク| あとがき');
+  });
+
+  it('何も無いところへ差し込むときは、入れたものの後ろへ', () => {
+    expect(carry('先頭 []|あとがき', '![](./a.png)')).toBe('先頭 ![](./a.png)|あとがき');
   });
 });
 

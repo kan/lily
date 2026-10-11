@@ -39,6 +39,32 @@ export function inLinkUrl(text: string, at: number): boolean {
 }
 
 /**
+ * 本文の `[start, end)` を `length` 文字のものに差し替えたあと、`position` にあった
+ * カーソルがどこへ行くか。
+ *
+ * **待ったあとの差し替え（貼った URL の題、カード、画像）で、利用者のカーソルを
+ * 奪わないため**（issue #12）。取りに行くあいだに別の場所を選び直した人の選択は、
+ * 差し替えで本文の長さが変わったぶんだけずらして残す。
+ *
+ * - 差し替えた範囲より後ろ（範囲の直後を含む）→ 長さの差だけずらす
+ * - 前（範囲の先頭を含む）→ そのまま
+ * - 中 → 差し替えたものの末尾へ（元の位置に当たる字はもう無い）
+ *
+ * `textarea.setRangeText` の `'preserve'` は使わない。あれは範囲の直後にいるカーソルを
+ * 「中」と見て差し替えたもの全体を選ぶので、貼った直後に何もしなかった人が次に
+ * 打った字でリンクを丸ごと消す。
+ */
+export function carriedPosition(
+  position: number,
+  start: number,
+  end: number,
+  length: number,
+): number {
+  if (position >= end) return position + (start + length - end);
+  return position <= start ? position : start + length;
+}
+
+/**
  * 本文の `[start, end)` をブロック要素で置き換えるときに、前後へ足す改行。
  *
  * **生 HTML は空行で挟まないとブロックにならない。** CommonMark の HTML ブロック
