@@ -4,10 +4,10 @@
   "description": "A small CMS for Cloudflare Workers, with D1 as the source of truth. Runs on Worker + D1 + R2 alone, and exports your posts as portable Markdown.",
   "type": "module",
   "license": "ISC",
-  "//repository": "publish 前に別リポジトリへ出す。npm のページに出るのと、provenance が「どのリポジトリのどのワークフローが出したか」をここと突き合わせるために要る",
+  "//repository": "publish 前に別リポジトリへ出す。npm のページに出るのと、provenance が「どのリポジトリのどのワークフローが出したか」をここと突き合わせるために要る。url の `git+` は npm が publish 時に付け足す形に先に揃えたもの (付けないと「normalized」の警告が出る)",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kan/lily.git"
+    "url": "git+https://github.com/kan/lily.git"
   },
   "homepage": "https://github.com/kan/lily",
   "bugs": "https://github.com/kan/lily/issues",
@@ -33,10 +33,10 @@
     "./test-support": "./dist/lib/test-support.js",
     "./package.json": "./package.json"
   },
-  "//bin": "lily は入口 (init が雛形を作る)。**名前がパッケージ名と同じなのは npx のため** —— `npx @kanf/lily init` は、スコープを外した名前と同じ bin を選ぶ (npm には別人の `lily` がいるので `npx lily` は使えない)。lily-assets は静的アセットの合流 (利用側の public + dist/admin) で、場所を知っているのが lily だから利用側に書かせない。どちらも素の .mjs なのは、配るもののうちこれだけが Node で走るため (dist/lib は Workers 向けの emit)",
+  "//bin": "lily は入口 (init が雛形を作る)。**名前がパッケージ名と同じなのは npx のため** —— `npx @kanf/lily init` は、スコープを外した名前と同じ bin を選ぶ (npm には別人の `lily` がいるので `npx lily` は使えない)。lily-assets は静的アセットの合流 (利用側の public + dist/admin) で、場所を知っているのが lily だから利用側に書かせない。どちらも素の .mjs なのは、配るもののうちこれだけが Node で走るため (dist/lib は Workers 向けの emit)。**パスに `./` を付けない** —— publish 時に npm が外し、「invalid and removed」という警告を出す (実際は外した形で残る)",
   "bin": {
-    "lily": "./bin/lily.mjs",
-    "lily-assets": "./bin/lily-assets.mjs"
+    "lily": "bin/lily.mjs",
+    "lily-assets": "bin/lily-assets.mjs"
   },
   "//files": "migrations は利用側の wrangler.jsonc が migrations_dir で直接指す (コピーしない)。dist/lib が配る本体、dist/admin はビルド済みの管理画面、bin は利用側のビルドが呼ぶコマンド、template は `lily init` が書き出す雛形。**雛形のロックは配らない** —— publish の時点では 1 つ前の版を指しているので、init が package.json だけ今の版に書き換えると噛み合わない (利用側は npm install で解決する)",
   "files": [
