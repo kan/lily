@@ -341,8 +341,37 @@ function imagesOf(list: FileList | null | undefined): File[] {
   return [...(list ?? [])].filter((file) => file.type.startsWith('image/'));
 }
 
+/**
+ * ファイルを運んでいるドラッグか。**それ以外には一切手を出さない。**
+ *
+ * 本文の中で選んだ文字列をドラッグで動かすのも同じ drag イベントで来る。
+ * そこで `preventDefault` するとブラウザの移動が止まり、アップロードの表示まで出る。
+ * `types` はドラッグの途中でも読める（`files` は drop まで空）。
+ */
+function carriesFiles(event: DragEvent): boolean {
+  return event.dataTransfer?.types.includes('Files') ?? false;
+}
+
+function onDragEnter(event: DragEvent): void {
+  if (!carriesFiles(event)) return;
+  event.preventDefault();
+  dragging.value++;
+}
+
+// dragleave は取り消せないので preventDefault は要らない。
+function onDragLeave(event: DragEvent): void {
+  if (carriesFiles(event)) dragging.value--;
+}
+
+function onDragOver(event: DragEvent): void {
+  if (carriesFiles(event)) event.preventDefault();
+}
+
 async function onDrop(event: DragEvent): Promise<void> {
+  // 数え違いがあっても、何かが落ちた時点で表示は必ず消す。
   dragging.value = 0;
+  if (!carriesFiles(event)) return;
+  event.preventDefault();
   await insertFiles(imagesOf(event.dataTransfer?.files));
 }
 
@@ -591,10 +620,10 @@ function isHttpUrl(text: string): boolean {
   <div
     class="dropzone"
     :class="{ over: dragging > 0 }"
-    @dragenter.prevent="dragging++"
-    @dragleave.prevent="dragging--"
-    @dragover.prevent
-    @drop.prevent="onDrop"
+    @dragenter="onDragEnter"
+    @dragleave="onDragLeave"
+    @dragover="onDragOver"
+    @drop="onDrop"
   >
     <textarea
       ref="area"
