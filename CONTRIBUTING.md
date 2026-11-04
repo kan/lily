@@ -85,7 +85,7 @@ scripts/      **None of these ship.** test-assets.mjs (test images), clean-lib.m
               copy-lib-assets.mjs (cleaning dist/lib and carrying the .css),
               check-fresh.mjs (is dist/lib older than src? consumers call it)
 test/         Vitest. Must pass knowing nothing about any consumer
-.github/      CI (typecheck + emit + test on push/PR), publish (on v* tags), dependabot
+.github/      CI (typecheck + emit + test on push/PR), tagpr (release PR), publish (on v* tags), dependabot
 tsconfig.json        Type checking (src + test). tsconfig.admin.json is the admin UI
 tsconfig.build.json  The emit that ships (dist/lib). Extends the above
 ```
@@ -127,21 +127,35 @@ CI runs `typecheck`, then `lint`, then `build:lib`, then `test`. **The emit runs
 check** because `typecheck` is `--noEmit` and would pass on a state where only the emit is
 broken — and the emit is what ships.
 
-Publishing happens **on a `v*` tag**, from `.github/workflows/publish.yml`, via npm Trusted
-Publishing (OIDC), so no token sits in the repository secrets. The workflow refuses to
-publish when the tag and `package.json`'s `version` disagree: a mismatch would otherwise
-publish the wrong version, or fail with a message that cannot be traced back to the tag.
+**Changes go through pull requests**, and **each pull request that changes what users get
+adds a line under `## [Unreleased]` in `CHANGELOG.md`.** That section becomes the release
+notes word for word, so write it for the people upgrading, not as a commit log. Label a pull
+request `enhancement` when it should make the next release a minor one.
 
-The same run then **creates the GitHub Release** for that tag, with notes generated from the
-commits since the previous release. It runs after `npm publish`, so a release never exists
-for a version that failed to publish.
+Releases are prepared by [tagpr](https://github.com/Songmu/tagpr) (`.tagpr`,
+`.github/workflows/tagpr.yml`). Every push to `main` rebuilds a **release pull request**
+that bumps `package.json`, brings `package-lock.json` in line, and turns `## [Unreleased]`
+into the version's section (`scripts/release-prepare.mjs`). Deciding to release is merging
+that pull request — a separate decision from changing the code. Merging it tags the commit,
+and tagpr then starts `.github/workflows/publish.yml` on the tag.
 
-Bumping the version and tagging are deliberately two steps: deciding to release is not the
-same decision as changing the code. After a release, point the template at what you just
-published — `cd template && npm install @kanf/lily@latest --package-lock-only` — which moves
-both the range and the lock. **The range matters on a minor bump**: `^0.3.0` does not accept
+Publishing goes through npm Trusted Publishing (OIDC), so no token sits in the repository
+secrets. The workflow refuses to publish when the tag and `package.json`'s `version`
+disagree, or when `CHANGELOG.md` has no section for the version: either would otherwise
+publish the wrong thing, or fail with a message that cannot be traced back to the tag.
+
+The same run then **creates the GitHub Release** for that tag, with that `CHANGELOG.md`
+section as its notes (`scripts/release-notes.mjs`). It runs after `npm publish`, so a
+release never exists for a version that failed to publish.
+
+After a release, point the template at what you just published —
+`cd template && npm install @kanf/lily@latest --package-lock-only` — which moves both the
+range and the lock. This cannot ride in the release pull request: the version is not on npm
+yet when it is prepared. **The range matters on a minor bump**: `^0.3.0` does not accept
 `0.4.0`, so `npm update` alone would leave the button's copy a minor behind.
 
-**One thing lives outside the repository**: on npmjs.com, the trusted publisher for this
+**Two things live outside the repository.** On npmjs.com, the trusted publisher for this
 package must allow *direct* publishing. New trusted-publisher configurations default to
-staged publishes only, and `npm publish` then fails with `403 OIDC permission denied`.
+staged publishes only, and `npm publish` then fails with `403 OIDC permission denied`. On
+GitHub, *Allow GitHub Actions to create and approve pull requests* must be on, or tagpr
+cannot open the release pull request.

@@ -35,6 +35,11 @@ lily を**パッケージ解決だけで**参照していた（`require.resolve`
   npm 自身が使っている
 - publish は**タグ（`v*`）で CI から**（`.github/workflows/publish.yml`）。
   Trusted Publishing（OIDC）なので token を secret に置かない
+- **版上げとタグは tagpr のリリース PR で行う**（0.5.2 の次の版から。それまでは
+  `npm version` で上げたコミットに手でタグを打っていた）。リリースを決める操作を
+  「リリース PR のマージ」1 つにし、`CHANGELOG.md` の節をそのままリリースノートに
+  するため。リリースノートを commit の羅列（`--generate-notes`）から変えたのは、
+  利用者に届く変更と依存の更新が同じ重さで並ぶため。手順は `CLAUDE.md`
 
 ### `.ts` 拡張子の import について
 

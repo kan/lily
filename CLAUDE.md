@@ -45,13 +45,29 @@ template だけ。**フォーマッタは入れていない**ので、整形の�
 
 **コードの変更を含むコミットの前に、次を順に実行する。**
 
-1. `/code-review` —— 実害のあるバグを洗う
-2. `/simplify` —— 重複・冗長・設計の深さを見て直す
-3. `npm run lint && npm run typecheck && npm test`
+1. **変更の規模に応じてレビューを回す**
+
+   | 規模 | 目安 | 手順 |
+   |---|---|---|
+   | 大規模 | 新しいモジュールや機構の追加、複数ファイルにまたがる構造の変更 | `/simplify` → `/code-review medium` |
+   | 中規模 | 既存の構造の中でのロジックの追加や変更 | `/code-review medium` のみ |
+   | 小規模 | 数行の修正、定数や文言の変更、分岐が増えない修正 | スキップ可 |
+
+   - **`/code-review` には effort を必ず `medium` と明示する。** 省くと最後に指定した
+     レベルが引き継がれ、検査の深さが過去の使い方で変わるため
+   - **`--fix` を付けない。** 指摘は 1 件ずつ採否を決めて自分で反映し、採らなかった
+     指摘は理由を添えてユーザーに報告する
+2. `npm run lint && npm run typecheck && npm test`
+3. **利用者に届く変更は、同じコミットで `CHANGELOG.md` の `## [Unreleased]` に書く。**
+   この節がそのままリリースノートになる（「リリース手順」）。リリースの時に
+   まとめて書かない。英語で、利用者に向けて書く（commit の羅列にしない）
 4. ユーザーの承認を得てからコミットする
 
-**順番に実行すること。** `/simplify` は修正を適用するので、`/code-review` と並行させると
-衝突する。**ドキュメントだけの変更ならスキップしてよい。**
+**`/simplify` と `/code-review` は必ず直列で実行する。並列で起動しない。**
+`/simplify` の書き換えが終わってから `/code-review` を起動する。`/code-review` を後に
+するのは、書き換えが済んだ最終形のコードをバグの観点で見るため。並列に動かすと、
+書き換え前のコードを見ることになり、`/simplify` が入れた不具合も見逃す。
+**ドキュメントだけの変更なら 1 と 2 はスキップしてよい**（3 と 4 は省かない）。
 
 指摘に対応したら、**意図的に実装を壊して該当テストだけが落ちることを確認する。**
 「通ったはずのテストが実は何も検証していなかった」は、利用側（fushihara.net）で
@@ -90,11 +106,160 @@ issue #8 で入れたもの。**設定はコードに無い**ので、ここに�
   secret scanning と push protection。secret scanning の追加オプション
   （non-provider patterns / validity checks）は OFF
 - ruleset `protect-main`: 既定ブランチの削除と force push だけを禁じる。
-  **PR は強制しない**（このリポジトリは PR 運用ではなく main へ直接 push）
+  PR を ruleset では強制していないが、**運用は PR**（下の「PR 運用」）
+- **「Allow GitHub Actions to create and approve pull requests」は ON。** tagpr が
+  GITHUB_TOKEN でリリース PR を作るのに要る（GitHub App は作っていない）
 - code scanning は CodeQL の既定セットアップ（`actions` と `javascript-typescript`）
 - Actions の `GITHUB_TOKEN` は既定 read。書き込みが要るワークフローは自分で宣言する
-  （`publish.yml` の `id-token: write`）
+  （`publish.yml` の `id-token: write`、`tagpr.yml` のジョブごとの権限）
 - 報告の窓口と、何を守ると言っているか / 言っていないかは `SECURITY.md`
+
+## PR 運用
+
+**変更はブランチを切って PR にし、マージして main に入れる**（tagpr へ移った
+2026-11 から。それまでは main へ直接 push していた）。**main へ直接 push しない。**
+ruleset では強制していないので、守るのは手順の側。
+
+- ブランチの push と PR の作成は、ユーザーの承認を得てから行う
+- CHANGELOG はその PR の中で書く（「コミット前の手順」の 3）
+- **次のリリースを minor にする PR には `enhancement` ラベルを付ける。** tagpr が
+  マージ済みの PR のラベルを見て、リリース PR に `tagpr:minor` を付ける（`.tagpr` の
+  `minorLabels`）。付いていなければ patch
+- dependabot の PR も同じくマージで入れる。依存の更新は利用者に届かないものが
+  多いので、CHANGELOG に書くかは中身で決める（脆弱性の修正や、`template/` の
+  依存のように利用者の手元に入るものは書く）。ただし**リリース後に template の
+  lily だけを上げる PR は書かない**（その版のことはその版の節に書いてある。
+  「リリース手順」の 4）
+
+## リリース手順
+
+**リリースは tagpr のリリース PR をマージして始める**（0.5.2 の次の版から）。
+版上げ（`package.json` / `package-lock.json`）、`CHANGELOG.md` の見出し、タグは
+リリース PR とワークフローが行う。**`npm version` を手で回さない。タグも手で
+打たない**（打ち直すときを除く。下の「やり直し」）。
+
+1. **リリース PR を確かめる**
+
+   ```bash
+   gh pr list --label tagpr --state open --json number,title,headRefName
+   gh run list --workflow tagpr.yml --branch main -L 3
+   ```
+
+   - **最新の tagpr の run が success であること。** 失敗していたら
+     `scripts/release-prepare.mjs` の出力を読む。多いのは `## [Unreleased]` が
+     空のとき。CHANGELOG を書く PR をマージすると作り直される
+   - **版（PR のタイトル）が正しいこと。** 既定は patch。`enhancement` の PR が
+     入っていれば minor になる。手で変えるときはリリース PR にラベルを付けて
+     作り直す
+
+     ```bash
+     gh pr edit <番号> --add-label tagpr:minor
+     gh workflow run tagpr.yml --ref main
+     ```
+
+   - Files changed が `package.json` / `package-lock.json`（版の行だけ）と
+     `CHANGELOG.md`（見出しとリンク定義）だけであること
+   - **ラベルを付け外ししたら、作り直してからマージする。** タグの版はマージの
+     時点の `package.json` で決まり（tagpr は `versionFile` をマージ時に読む）、
+     `package.json` と CHANGELOG の見出しは最後に作り直した時点の版のまま。
+     作り直さずにマージすると、**ラベルの版ではなく前の版がそのまま出る**
+     （どこも食い違わないので、何も止まらない）
+   - リリース PR の CI は承認待ち（`action_required`）で止まることがある
+     （GITHUB_TOKEN が作った PR のため）。そのときは今の head の run を承認する
+     （`gh api -X POST repos/kan/lily/actions/runs/<id>/approve`）
+
+2. **CHANGELOG の節を確かめる**
+
+   **この節がそのまま GitHub のリリースノートになる。** 前回のタグからの変更と
+   突き合わせ、利用者に届く変更が載っているかを見る。直すときはリリース PR の
+   ブランチではなく、**main の `## [Unreleased]` を直す PR を入れる**（ブランチは
+   tagpr が作り直すたびに main から作られる）。
+
+   ```bash
+   git fetch origin
+   git show origin/<ブランチ>:CHANGELOG.md | sed -n '1,60p'
+   git log --oneline <前回のタグ>..origin/main
+   ```
+
+   見出しの日付は、tagpr が最後にリリース PR を作り直した日（日本時間）。
+   マージする日と違えば `gh workflow run tagpr.yml --ref main` で作り直す。
+
+3. **リリース PR をマージする**
+
+   ```bash
+   gh pr merge <番号> --squash --delete-branch
+   git switch main && git pull --ff-only
+   gh run list --workflow tagpr.yml --commit "$(git rev-parse HEAD)" -L 1
+   gh run list --workflow publish.yml -L 1
+   ```
+
+   マージの push で走る tagpr の run がマージコミットにタグを打ち、`publish`
+   ジョブが `publish.yml` をそのタグで起動する。**タグが打たれるまで main へ
+   何もマージしない。** tagpr の run は前の run が終わるまで待ち、待っている run は
+   新しい push の run に置き換えられる（cancelled になる）。置き換えられたら、
+   マージコミットの run を `gh run rerun <run-id>` で再実行するとタグが打たれる。
+
+   リリースの直後は `## [Unreleased]` が空なので、次に CHANGELOG を書くまで
+   main への push ごとに tagpr の run が失敗する。これは想定どおりで、その間の
+   リリース PR はマージしない。
+
+4. **確認と後始末**
+   - `publish.yml` の run が通り、npm（`npm view @kanf/lily version`）と
+     GitHub Release に新しい版があること。Release の本文が CHANGELOG の節であること
+   - **template の lock を上げる PR を入れる。** コマンドと範囲の理由は「踏みやすい穴」の
+     `template/package-lock.json` の項。リリース PR に入れられないのは、準備の時点では
+     その版が npm に無いため。
+     CHANGELOG には書かない（このマージで走る tagpr の run は上のとおり失敗する）
+
+**やり直し**
+
+- `publish.yml` が npm へ出す前に落ちたら、直してから
+  `gh workflow run publish.yml --ref vX.Y.Z` で起動し直す
+- npm へは出て Release の作成だけが落ちたら、再実行しない（同じ版は publish
+  できずに落ちる）。`node scripts/release-notes.mjs vX.Y.Z > notes.md` から
+  `gh release create vX.Y.Z --title vX.Y.Z --verify-tag --notes-file notes.md` を手で回す
+- **`publish.yml` はタグの指すコミットで動く。** npm へ出る前に落ちた原因が
+  コードや CHANGELOG にあるなら、直した PR をマージしてタグを打ち直す
+  （`git push origin :refs/tags/vX.Y.Z && git tag -d vX.Y.Z` で消し、直した
+  マージコミットに打って push する。`push: tags` で起動する）。CHANGELOG は
+  main ではもう `## [X.Y.Z] - 日付` になっている節を直す。**タグを消している間に
+  main へ入ると、tagpr がリリース PR を作り直す。** 打ち直しが済むまで他の PR を
+  マージせず、作り直されたリリース PR はタグを打ち直した後に閉じる
+  （まだ踏んでいない手順なので、初回はリリース PR の状態を見ながら進める）
+- **npm へ出た版は打ち直せない**（同じ版は二度と publish できない）。次の版で直す
+
+### リリース PR（tagpr）の仕組み
+
+- **main に push があるたびに `tagpr.yml` がリリース PR を作り直す。** ブランチは
+  `tagpr-from-v<前回の版>`。マージすると、次の run がマージコミットにタグを打つ。
+  設定は `.tagpr`
+- **版は `package.json` で持つ**（`versionFile`）。**tagpr は `package-lock.json` を
+  書き換えない**（版のファイルとして扱わない一覧に入っている）ので、
+  `scripts/release-prepare.mjs`（`postVersionCommand`）が揃える
+- **`release-prepare.mjs` は `## [Unreleased]` を `## [X.Y.Z] - 日付` にし、その上に
+  空の `## [Unreleased]` を置き直し、リンク定義を足す。** 作り直しのたびに走るので、
+  自分の出力に対してもう一度走らせても何も変えない。`## [Unreleased]` が無いか
+  空なら失敗する。失敗しても tagpr はリリース PR を作るので、run が赤ならマージしない
+- **tagpr のジョブでは依存のコードを走らせない。** リポジトリへ push できる
+  トークンを持つため。`npm ci` をせず、`release-prepare.mjs` は Node の組み込み
+  だけで書く。tagpr の action は SHA で固定する
+- **CHANGELOG と GitHub の Release は tagpr に作らせない**（`changelog = false` /
+  `release = false`）。tagpr の CHANGELOG は PR のタイトルを並べるだけ。Release は
+  `publish.yml` が npm publish の**後**に作る（publish に失敗した版の Release を
+  残さない）
+- **CHANGELOG の読み方（節の見出し、コードフェンス、末尾のリンク定義）は
+  `scripts/release-notes.mjs` の 1 か所に置く。** `release-prepare.mjs` は節の検査を
+  そちらに任せる。2 か所に書くと、リリース PR は通るのに `publish.yml` の検査で落ちる
+- **`publish.yml` は `workflow_dispatch` でタグを ref にして起動する**（`tagpr.yml`
+  の `publish` ジョブ）。GITHUB_TOKEN で push したタグでは `push: tags` が起動しないが、
+  `workflow_dispatch` は例外として起動できる。`workflow_call` で同じ run から呼ぶ形に
+  しないこと。run の主体が `tagpr.yml`、ref が `refs/heads/main` になり、npm の
+  Trusted Publisher（`publish.yml` を登録してある）と provenance がそれを名乗る
+- **`workflow_dispatch` の権限（`actions: write`）は `publish` ジョブだけに付け、
+  tagpr のジョブには付けない**
+- **`tagpr` ジョブの `concurrency` は `cancel-in-progress: false`。** 同じブランチを
+  作り直し合わないように並べず、タグを打った直後に止めて publish されないタグを
+  残さないように止めない
 
 ## 踏みやすい穴
 
@@ -123,7 +288,8 @@ issue #8 で入れたもの。**設定はコードに無い**ので、ここに�
     （`.../lily/tree/main/template`）。Cloudflare はこのディレクトリを新しい repo の
     root として扱うので、**中だけで完結していること**（外のファイルを参照しない）
   - **`template/package-lock.json` は commit する**（ボタンの `npm ci` が要る）。
-    lily を publish したら `cd template && npm install @kanf/lily@latest --package-lock-only`。
+    lily を publish したら `cd template && npm install @kanf/lily@latest --package-lock-only`
+    （「リリース手順」の 4）。
     **範囲も動かす** —— `^0.3.0` は `0.4.0` を受けないので、`npm update` だけだと
     ボタンから入る人が minor 1 つ古い lily で始まる（`init` は自分の版に書き換える
     ので、そちらは影響を受けない）
