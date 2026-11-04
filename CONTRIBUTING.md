@@ -145,9 +145,18 @@ secrets. The workflow refuses to publish when the tag and `package.json`'s `vers
 disagree, or when `CHANGELOG.md` has no section for the version: either would otherwise
 publish the wrong thing, or fail with a message that cannot be traced back to the tag.
 
-The same run then **creates the GitHub Release** for that tag, with that `CHANGELOG.md`
-section as its notes (`scripts/tagpr/release-notes.mjs`). It runs after `npm publish`, so a
-release never exists for a version that failed to publish.
+**The workflow is three jobs, split by what each may do.** `build` checks, tests and runs
+`npm pack` with no write permission at all — it is the only job where dependency code runs.
+`publish` holds `id-token: write` and does nothing but `npm publish` the tarball `build`
+made: no checkout, no `npm ci`, no `npm install -g npm` (Node 24's own npm is new enough
+for Trusted Publishing). Dependency code running next to that permission could mint the
+npm token itself and publish any version it liked. What the split does not stop is a
+dependency rewriting `dist/` during the build in `build`: that tarball is published as is.
+
+`release` then **creates the GitHub Release** for that tag, with that `CHANGELOG.md`
+section as its notes (`scripts/tagpr/release-notes.mjs`). It runs after `publish`, so a
+release never exists for a version that failed to publish, and if only this job fails it
+can be re-run on its own.
 
 **`scripts/tagpr/` is a `git subtree` of
 [kan/tagpr-scripts](https://github.com/kan/tagpr-scripts)**, shared with wema and

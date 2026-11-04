@@ -221,8 +221,14 @@ ruleset では強制していないので、守るのは手順の側。
 
 - `publish.yml` が npm へ出す前に落ちたら、直してから
   `gh workflow run publish.yml --ref vX.Y.Z` で起動し直す
-- npm へは出て Release の作成だけが落ちたら、再実行しない（同じ版は publish
-  できずに落ちる）。`node scripts/tagpr/release-notes.mjs vX.Y.Z > notes.md` から
+- **やり直す前に `npm view @kanf/lily@X.Y.Z version` で npm に出たかを見る。**
+  `publish` ジョブが赤でも、npm には届いていることがある（応答の前に切れたとき）
+- npm へは出て Release の作成（`release` ジョブ）だけが落ちたら、
+  `gh run rerun <run-id> --failed` で落ちたジョブだけをやり直す。**run 全体を
+  再実行しない**（`publish` ジョブも走り、同じ版は publish できずに落ちる）。
+  `publish` が赤なのに npm に出ていたときや、artifact の保持期間（7 日）を
+  過ぎていたら、
+  `node scripts/tagpr/release-notes.mjs vX.Y.Z > notes.md` から
   `gh release create vX.Y.Z --title vX.Y.Z --verify-tag --notes-file notes.md` を手で回す
 - **`publish.yml` はタグの指すコミットで動く。** npm へ出る前に落ちた原因が
   コードや CHANGELOG にあるなら、直した PR をマージしてタグを打ち直す

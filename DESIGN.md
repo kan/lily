@@ -35,6 +35,13 @@ lily を**パッケージ解決だけで**参照していた（`require.resolve`
   npm 自身が使っている
 - publish は**タグ（`v*`）で CI から**（`.github/workflows/publish.yml`）。
   Trusted Publishing（OIDC）なので token を secret に置かない
+- **publish のワークフローは権限ごとに 3 つのジョブに分ける**（issue #38）。
+  `id-token: write` を持つジョブで `npm ci` やテストを走らせると、依存のコードが
+  npm 向けの OIDC トークンを取り、好きな版を好きな中身で publish できる。token を
+  secret に置かないことの裏返しで、トークンを取れるジョブそのものが secret の
+  代わりになる。依存のコードが走るのは権限の無い `build` だけにし、`publish` は
+  `build` が作った tgz を出すだけにした。**ビルドの途中で `dist/` を書き換えられる
+  ことまでは防げない**（配るものがビルドの出力である以上、分割の外の話）
 - **版上げとタグは tagpr のリリース PR で行う**（0.5.2 の次の版から。それまでは
   `npm version` で上げたコミットに手でタグを打っていた）。リリースを決める操作を
   「リリース PR のマージ」1 つにし、`CHANGELOG.md` の節をそのままリリースノートに
