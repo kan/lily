@@ -34,9 +34,17 @@ permissions:
 
 jobs:
   publish:
+    # **タグのときだけ動かす。** `workflow_dispatch` は main などでも起動できる。
+    # 版の一致の検査だけに頼らず、job ごと止める。
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
+      # **認証情報を `.git/config` に残さない。** この後 `npm ci` / `npm test` で
+      # 依存のコードが走るが、このジョブの GITHUB_TOKEN は `contents: write` を持つ。
+      # Release の作成は `GH_TOKEN` で渡すので困らない。
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version: 24
@@ -88,11 +96,7 @@ jobs:
       # `--verify-tag` はタグが実在することを確かめる。本文は CHANGELOG のその版の
       # 節（上で確かめてある）。commit の羅列（`--generate-notes`）にしないのは、
       # 利用者に届く変更と依存の更新が同じ重さで並ぶため。
-      #
-      # **ref がタグのときだけ作る。** `workflow_dispatch` を main で起動すると
-      # 上の版の一致で落ちるが、念のためここでも止める。
       - name: GitHub Release を作る
-        if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
