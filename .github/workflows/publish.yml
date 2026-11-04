@@ -74,7 +74,7 @@ jobs:
       - name: CHANGELOG の節を取り出す
         env:
           TAG: ${{ github.ref_name }}
-        run: node scripts/release-notes.mjs "$TAG" > "$RUNNER_TEMP/release-notes.md"
+        run: node scripts/tagpr/release-notes.mjs "$TAG" > "$RUNNER_TEMP/release-notes.md"
 
       # Trusted Publishing は npm 11.5.1 以降にしか無い。
       - run: npm install -g npm@latest

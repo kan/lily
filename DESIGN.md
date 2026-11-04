@@ -40,6 +40,11 @@ lily を**パッケージ解決だけで**参照していた（`require.resolve`
   「リリース PR のマージ」1 つにし、`CHANGELOG.md` の節をそのままリリースノートに
   するため。リリースノートを commit の羅列（`--generate-notes`）から変えたのは、
   利用者に届く変更と依存の更新が同じ重さで並ぶため。手順は `CLAUDE.md`
+- **リリース PR を作るスクリプトは `kan/tagpr-scripts` を git subtree で取り込む**
+  （`scripts/tagpr/`。wema / wema-kake と共有）。3 つの repo の写しは repo 名の直書き
+  以外が同じで、直すたびに 3 か所を揃えていた。npm パッケージにしなかったのは、
+  tagpr のジョブが push できるトークンを持ち、依存のコードを走らせないため。
+  subtree ならコードは各 repo にコミットされ、取り込みの差分としてレビューされる
 
 ### `.ts` 拡張子の import について
 

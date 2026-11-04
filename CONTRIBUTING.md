@@ -83,7 +83,8 @@ src/
   admin/      The Vue admin UI. Built separately (vite) into dist/admin
 scripts/      **None of these ship.** test-assets.mjs (test images), clean-lib.mjs /
               copy-lib-assets.mjs (cleaning dist/lib and carrying the .css),
-              check-fresh.mjs (is dist/lib older than src? consumers call it)
+              check-fresh.mjs (is dist/lib older than src? consumers call it),
+              tagpr/ (the release scripts; a subtree of kan/tagpr-scripts)
 test/         Vitest. Must pass knowing nothing about any consumer
 .github/      CI (typecheck + emit + test on push/PR), tagpr (release PR), publish (on v* tags), dependabot
 tsconfig.json        Type checking (src + test). tsconfig.admin.json is the admin UI
@@ -135,7 +136,7 @@ request `enhancement` when it should make the next release a minor one.
 Releases are prepared by [tagpr](https://github.com/Songmu/tagpr) (`.tagpr`,
 `.github/workflows/tagpr.yml`). Every push to `main` rebuilds a **release pull request**
 that bumps `package.json`, brings `package-lock.json` in line, and turns `## [Unreleased]`
-into the version's section (`scripts/release-prepare.mjs`). Deciding to release is merging
+into the version's section (`scripts/tagpr/release-prepare.mjs`). Deciding to release is merging
 that pull request — a separate decision from changing the code. Merging it tags the commit,
 and tagpr then starts `.github/workflows/publish.yml` on the tag.
 
@@ -145,8 +146,15 @@ disagree, or when `CHANGELOG.md` has no section for the version: either would ot
 publish the wrong thing, or fail with a message that cannot be traced back to the tag.
 
 The same run then **creates the GitHub Release** for that tag, with that `CHANGELOG.md`
-section as its notes (`scripts/release-notes.mjs`). It runs after `npm publish`, so a
+section as its notes (`scripts/tagpr/release-notes.mjs`). It runs after `npm publish`, so a
 release never exists for a version that failed to publish.
+
+**`scripts/tagpr/` is a `git subtree` of
+[kan/tagpr-scripts](https://github.com/kan/tagpr-scripts)**, shared with wema and
+wema-kake. Do not edit it here: change that repository, then
+`git subtree pull --prefix=scripts/tagpr https://github.com/kan/tagpr-scripts.git main --squash`,
+and merge that pull request with a merge commit rather than a squash — `git subtree` finds
+the last import from the commits it made.
 
 After a release, point the template at what you just published —
 `cd template && npm install @kanf/lily@latest --package-lock-only` — which moves both the
