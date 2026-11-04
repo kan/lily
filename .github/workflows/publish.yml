@@ -128,7 +128,10 @@ jobs:
       # tgz の publish では lifecycle script（prepack など）は走らない。
       #
       # `registry-url` は npm の Trusted Publishing の手順どおり。setup-node はこれで
-      # `.npmrc` に `NODE_AUTH_TOKEN` の行を書くが、値は入らないので npm は OIDC を使う。
+      # `.npmrc` に `NODE_AUTH_TOKEN` の行を書き、`NODE_AUTH_TOKEN` に仮の値（`XXXXX-...`）を
+      # 入れる。npm は OIDC を先に使うので普段は効かないが、**OIDC の交換に失敗すると、
+      # npm はその仮の値で認証を試みて 401 / 404 で落ちる。** そのエラーを見たら、
+      # token ではなく OIDC の側（`id-token: write`、npm の Trusted Publisher の登録）を疑う。
       # `check-latest` はランナーにある古い 24.x を使わないため（下の npm の版）。
       - uses: actions/setup-node@v7
         with:
