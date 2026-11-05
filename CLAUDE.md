@@ -114,6 +114,24 @@ issue #8 で入れたもの。**設定はコードに無い**ので、ここに�
   （`publish.yml` の `id-token: write`、`tagpr.yml` のジョブごとの権限）
 - 報告の窓口と、何を守ると言っているか / 言っていないかは `SECURITY.md`
 
+## action の固定
+
+**action の固定は `.github/workflows/actions.lock`（`gh actions-lock` が作る）に任せる。**
+PR と main への push で、`verify-lockfile.yml` が lockfile と `uses:` の食い違いを見る。
+形は kan/tagpr-scripts#7 で各 repo に揃えたもの。
+
+- `uses:` は完全な版のタグ（`@v7.0.1`）で書き、**SHA は書かない。** 付け替えられた
+  タグも、lockfile が記録した commit で動く
+- `uses:` を足したり変えたりしたら `gh actions-lock` を再実行し、**lockfile も同じ
+  コミットに入れる。lockfile は手で編集しない。** 食い違ったコミットは
+  `verify-lockfile.yml` が落とす。実行時には Actions がジョブを起動しない
+- Dependabot は Actions の更新 PR で lockfile の該当行も作り直す
+- 検査が入れる拡張の版（`verify-lockfile.yml` の `--pin`）は、Dependabot と lockfile の
+  どちらも追わない。lockfile の形式が上がって `--verify` が落ちたら、手元の
+  `gh actions-lock` と同じ版に手で上げる
+- 別の repo の reusable workflow を呼ぶ行（`jobs.<id>.uses`）は lockfile では固定され
+  ない。足すなら commit の SHA で書く（今は無い）
+
 ## PR 運用
 
 **変更はブランチを切って PR にし、マージして main に入れる**（tagpr へ移った
@@ -257,7 +275,7 @@ ruleset では強制していないので、守るのは手順の側。
   失敗しても tagpr はリリース PR を作るので、**run が赤ならマージしない**
 - **tagpr のジョブでは依存のコードを走らせない。** リポジトリへ push できる
   トークンを持つため。`npm ci` をせず、`scripts/tagpr/` は Node の組み込み
-  だけで書く。tagpr の action は SHA で固定する
+  だけで書く。tagpr の action は `actions.lock` で固定する（「action の固定」）
 - **CHANGELOG と GitHub の Release は tagpr に作らせない**（`changelog = false` /
   `release = false`）。tagpr の CHANGELOG は PR のタイトルを並べるだけ。Release は
   `publish.yml` が npm publish の**後**に作る（publish に失敗した版の Release を
