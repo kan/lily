@@ -132,7 +132,9 @@ PR と main への push で、`verify-lockfile.yml` が lockfile と `uses:` の
 - 別の repo の reusable workflow を呼ぶ行（`jobs.<id>.uses`）は lockfile では固定され
   ない。commit の SHA で書く。今あるのは `tagpr.yml` が kan/tagpr-scripts の共通の
   workflow を呼ぶ行だけで、SHA は subtree と揃える（「リリース PR（tagpr）の仕組み」）。
-  その中の action（tagpr など）は tagpr-scripts の `actions.lock` が固定する
+  その中の action（tagpr など）は tagpr-scripts の `actions.lock` が固定する。
+  **Dependabot にはこの行を上げさせない**（`dependabot.yml` の `ignore`）。SHA だけが
+  上がると、subtree の写しと実際に動く workflow が食い違う。ignore を外さないこと
 
 ## PR 運用
 
