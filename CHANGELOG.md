@@ -9,6 +9,8 @@ Versions up to 0.5.2 are listed on the
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-11-06
+
 ### Security
 
 - lily now requires hono 4.13.16 or later. That release fixes
@@ -28,4 +30,5 @@ Versions up to 0.5.2 are listed on the
   tags the release and publishes it to npm. The GitHub release notes are now
   this file's section for the version instead of a list of commits.
 
+[0.5.4]: https://github.com/kan/lily/releases/tag/v0.5.4
 [0.5.3]: https://github.com/kan/lily/releases/tag/v0.5.3
