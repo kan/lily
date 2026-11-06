@@ -130,7 +130,11 @@ PR と main への push で、`verify-lockfile.yml` が lockfile と `uses:` の
   どちらも追わない。lockfile の形式が上がって `--verify` が落ちたら、手元の
   `gh actions-lock` と同じ版に手で上げる
 - 別の repo の reusable workflow を呼ぶ行（`jobs.<id>.uses`）は lockfile では固定され
-  ない。足すなら commit の SHA で書く（今は無い）
+  ない。commit の SHA で書く。今あるのは `tagpr.yml` が kan/tagpr-scripts の共通の
+  workflow を呼ぶ行だけで、SHA は subtree と揃える（「リリース PR（tagpr）の仕組み」）。
+  その中の action（tagpr など）は tagpr-scripts の `actions.lock` が固定する。
+  **Dependabot にはこの行を上げさせない**（`dependabot.yml` の `ignore`）。SHA だけが
+  上がると、subtree の写しと実際に動く workflow が食い違う。ignore を外さないこと
 
 ## PR 運用
 
@@ -165,7 +169,8 @@ ruleset では強制していないので、守るのは手順の側。
    gh run list --workflow tagpr.yml --branch main -L 3
    ```
 
-   - **最新の tagpr の run が success であること。** 失敗していたら
+   - **最新の tagpr の run が success であること。** 失敗した run はリリース PR を
+     draft にする（次に成功した run が ready に戻す）。失敗していたら
      `scripts/tagpr/release-prepare.mjs` の出力を読む。多いのは `## [Unreleased]` が
      空のとき。CHANGELOG を書く PR をマージすると作り直される。
      「already has `## [X.Y.Z]`」で落ちていたら、前のリリース PR のタグが打たれて
@@ -215,13 +220,14 @@ ruleset では強制していないので、守るのは手順の側。
    gh run list --workflow publish.yml -L 1
    ```
 
-   マージの push で走る tagpr の run がマージコミットにタグを打ち、`publish`
-   ジョブが `publish.yml` をそのタグで起動する。**タグが打たれるまで main へ
+   マージの push で走る tagpr の run がマージコミットにタグを打ち（annotated に
+   打ち直す）、同じ run が `publish.yml` をそのタグで起動する。**タグが打たれるまで main へ
    何もマージしない。** tagpr の run は前の run が終わるまで待ち、待っている run は
    新しい push の run に置き換えられる（cancelled になる）。置き換えられたら、
    マージコミットの run を `gh run rerun <run-id>` で再実行するとタグが打たれる。
    置き換えた側の run は「already has `## [X.Y.Z]`」で赤になる（版だけ上がった
-   リリース PR が残ることがある。マージせず、タグが打たれた後の run で作り直される）。
+   リリース PR が draft で残ることがある。draft を手で外さず、マージもしない。
+   タグを打つ run は ready に戻さないので、その後に通った push の run が作り直して戻す）。
 
    リリースの直後は `## [Unreleased]` が空なので、次に CHANGELOG を書くまで
    main への push ごとに tagpr の run が失敗する。これは想定どおりで、その間の
@@ -251,7 +257,8 @@ ruleset では強制していないので、守るのは手順の側。
 - **`publish.yml` はタグの指すコミットで動く。** npm へ出る前に落ちた原因が
   コードや CHANGELOG にあるなら、直した PR をマージしてタグを打ち直す
   （`git push origin :refs/tags/vX.Y.Z && git tag -d vX.Y.Z` で消し、直した
-  マージコミットに打って push する。`push: tags` で起動する）。CHANGELOG は
+  マージコミットに **annotated で**打って push する。
+  `git tag -a -m "Release vX.Y.Z" vX.Y.Z <コミット>`。`push: tags` で起動する）。CHANGELOG は
   main ではもう `## [X.Y.Z] - 日付` になっている節を直す。**タグを消している間に
   main へ入ると、その tagpr の run は「already has `## [X.Y.Z]`」で赤になり、
   版だけ上がったリリース PR が残ることがある。** そのリリース PR はマージせず、
@@ -264,6 +271,10 @@ ruleset では強制していないので、守るのは手順の側。
 - **main に push があるたびに `tagpr.yml` がリリース PR を作り直す。** ブランチは
   `tagpr-from-v<前回の版>`。マージすると、次の run がマージコミットにタグを打つ。
   設定は `.tagpr`
+- **`tagpr.yml` は kan/tagpr-scripts の共通の workflow を呼ぶだけ**（kan/tagpr-scripts#6）。
+  tagpr のジョブ、落ちた run での draft、タグを annotated に打ち直すこと、
+  `publish.yml` の起動はそちらにある。動きと落ちたときの扱いは、tagpr-scripts の README の
+  「The tagpr workflow」
 - **版は `package.json` で持つ**（`versionFile`）。**tagpr は `package-lock.json` を
   書き換えない**（版のファイルとして扱わない一覧に入っている）ので、
   `scripts/tagpr/release-prepare.mjs`（`postVersionCommand`）が揃える
@@ -272,10 +283,11 @@ ruleset では強制していないので、守るのは手順の側。
   検査をすべて済ませてから書き、落ちるときは何も書き換えない。落ちるのは
   `## [Unreleased]` が無いか空か重複しているとき、`## [X.Y.Z]` が既にあるとき
   （タグが打たれていない）、`package.json` の版や `repository` が合わないとき。
-  失敗しても tagpr はリリース PR を作るので、**run が赤ならマージしない**
+  失敗しても tagpr は版だけ上げたリリース PR を作る。その PR は共通の workflow が draft に
+  するが、**run が赤ならマージしない**
 - **tagpr のジョブでは依存のコードを走らせない。** リポジトリへ push できる
   トークンを持つため。`npm ci` をせず、`scripts/tagpr/` は Node の組み込み
-  だけで書く。tagpr の action は `actions.lock` で固定する（「action の固定」）
+  だけで書く。tagpr の action は tagpr-scripts の `actions.lock` が固定する（「action の固定」）
 - **CHANGELOG と GitHub の Release は tagpr に作らせない**（`changelog = false` /
   `release = false`）。tagpr の CHANGELOG は PR のタイトルを並べるだけ。Release は
   `publish.yml` が npm publish の**後**に作る（publish に失敗した版の Release を
@@ -294,20 +306,22 @@ ruleset では強制していないので、守るのは手順の側。
 
   - **`-S` を付ける。** subtree は `commit-tree` でコミットを作るので、`commit.gpgsign`
     が効かず未署名になる
+  - **同じ PR で、`tagpr.yml` の `uses: kan/tagpr-scripts/...@<SHA>` を取り込んだ
+    tagpr-scripts の commit に上げる。** squash のコミットのメッセージにある
+    `git-subtree-split` の SHA（lily の squash やマージのコミットの SHA ではない）
   - **この PR だけはマージコミットで入れる**（`gh pr merge <番号> --merge`）。
     subtree は前回の取り込みを自分のコミットから探すので、squash すると次の pull が
     壊れる
   - 取り込む PR は CHANGELOG に書かない（利用者に届かない）
-- **`publish.yml` は `workflow_dispatch` でタグを ref にして起動する**（`tagpr.yml`
-  の `publish` ジョブ）。GITHUB_TOKEN で push したタグでは `push: tags` が起動しないが、
+- **`publish.yml` は `workflow_dispatch` でタグを ref にして起動する**（共通の workflow
+  の `release` ジョブ）。GITHUB_TOKEN で push したタグでは `push: tags` が起動しないが、
   `workflow_dispatch` は例外として起動できる。`workflow_call` で同じ run から呼ぶ形に
   しないこと。run の主体が `tagpr.yml`、ref が `refs/heads/main` になり、npm の
   Trusted Publisher（`publish.yml` を登録してある）と provenance がそれを名乗る
-- **`workflow_dispatch` の権限（`actions: write`）は `publish` ジョブだけに付け、
-  tagpr のジョブには付けない**
-- **`tagpr` ジョブの `concurrency` は `cancel-in-progress: false`。** 同じブランチを
-  作り直し合わないように並べず、タグを打った直後に止めて publish されないタグを
-  残さないように止めない
+- **`tagpr.yml` の呼ぶジョブには、権限を 4 つとも書く**（`actions: write` を含む）。
+  共通の workflow が使える上限で、`actions: write` は中の `release` ジョブだけが使う
+- **`tagpr.yml` に `concurrency` を付けない。** run を並べるのは共通の workflow の
+  tagpr のジョブ（`cancel-in-progress: false`）。呼ぶ側にも付けると deadlock として止まる
 
 ## 踏みやすい穴
 

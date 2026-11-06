@@ -163,7 +163,11 @@ can be re-run on its own.
 wema-kake. Do not edit it here: change that repository, then
 `git subtree pull --prefix=scripts/tagpr https://github.com/kan/tagpr-scripts.git main --squash`,
 and merge that pull request with a merge commit rather than a squash — `git subtree` finds
-the last import from the commits it made.
+the last import from the commits it made. In the same pull request, move the
+`uses: kan/tagpr-scripts/.github/workflows/tagpr.yml@<SHA>` line in
+`.github/workflows/tagpr.yml` to the tagpr-scripts commit just pulled (the
+`git-subtree-split` line of the squash commit): that workflow runs tagpr, and its copy in
+`scripts/tagpr/` should match what runs.
 
 After a release, point the template at what you just published —
 `cd template && npm install @kanf/lily@latest --package-lock-only` — which moves both the
