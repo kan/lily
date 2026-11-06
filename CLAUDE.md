@@ -105,8 +105,19 @@ issue #8 で入れたもの。**設定はコードに無い**ので、ここに�
 - Dependabot の alert と security update、private vulnerability reporting、
   secret scanning と push protection。secret scanning の追加オプション
   （non-provider patterns / validity checks）は OFF
-- ruleset `protect-main`: 既定ブランチの削除と force push だけを禁じる。
-  PR を ruleset では強制していないが、**運用は PR**（下の「PR 運用」）
+- ruleset `protect-main`（既定ブランチが対象。issue #43）
+  - 削除と force push を禁じる
+  - **変更は PR を通す**（承認の数は 0）。マージの方法は squash とマージコミットだけ
+    （subtree を取り込む PR がマージコミットを使う）
+  - **required check は `test`（CI）と `Verify actions.lock`。** 壊れた lockfile が main に
+    入ると、次の run はジョブを起動できずに止まるので、lockfile の検査も必須にしてある。
+    branch を最新に揃えること（strict）は求めない。求めると、dependabot の PR を
+    1 件マージするたびに残りの rebase が要る
+  - **bypass は管理者に、PR の中でだけ許す**（`bypass_mode: pull_request`）。管理者でも
+    main へ直接 push はできない。CI が外の事情で壊れたときは、PR を required check
+    なしでマージできる。**普段は使わない**
+  - tagpr は阻まれない。push するのはリリース PR のブランチとタグだけで、main には
+    push しない
 - **「Allow GitHub Actions to create and approve pull requests」は ON。** tagpr が
   GITHUB_TOKEN でリリース PR を作るのに要る（GitHub App は作っていない）
 - code scanning は CodeQL の既定セットアップ（`actions` と `javascript-typescript`）
@@ -140,7 +151,8 @@ PR と main への push で、`verify-lockfile.yml` が lockfile と `uses:` の
 
 **変更はブランチを切って PR にし、マージして main に入れる**（tagpr へ移った
 2026-11 から。それまでは main へ直接 push していた）。**main へ直接 push しない。**
-ruleset では強制していないので、守るのは手順の側。
+ruleset `protect-main` が PR と required check を強制する（「リポジトリの設定」）ので、
+直接 push は拒まれる。
 
 - ブランチの push と PR の作成は、ユーザーの承認を得てから行う
 - マージは squash。**例外は `scripts/tagpr/` の subtree を取り込む PR で、マージコミットに
@@ -193,7 +205,9 @@ ruleset では強制していないので、守るのは手順の側。
      （どこも食い違わないので、何も止まらない）
    - リリース PR の CI は承認待ち（`action_required`）で止まることがある
      （GITHUB_TOKEN が作った PR のため）。そのときは今の head の run を承認する
-     （`gh api -X POST repos/kan/lily/actions/runs/<id>/approve`）
+     （`gh api -X POST repos/kan/lily/actions/runs/<id>/approve`）。CI と Verify Lockfile の
+     2 つとも承認する。**`test` と `Verify actions.lock` は required check なので、承認して
+     通るまでマージできない**（「リポジトリの設定」）
 
 2. **CHANGELOG の節を確かめる**
 
