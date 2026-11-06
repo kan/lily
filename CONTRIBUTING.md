@@ -169,11 +169,17 @@ the last import from the commits it made. In the same pull request, move the
 `git-subtree-split` line of the squash commit): that workflow runs tagpr, and its copy in
 `scripts/tagpr/` should match what runs.
 
-After a release, point the template at what you just published —
-`cd template && npm install @kanf/lily@latest --package-lock-only` — which moves both the
-range and the lock. This cannot ride in the release pull request: the version is not on npm
-yet when it is prepared. **The range matters on a minor bump**: `^0.3.0` does not accept
-`0.4.0`, so `npm update` alone would leave the button's copy a minor behind.
+After a release, Dependabot points the template at what was just published: the
+`/template` entry of `.github/dependabot.yml` checks `@kanf/lily` every weekday morning
+(Japan time) and opens a pull request that moves both the range and the lock. Merge it once
+CI passes. If none arrives, do it by hand with
+`cd template && npm install @kanf/lily@<version> --package-lock-only`. This cannot ride in
+the release pull request: the version is not on npm yet when it is prepared. **The range
+matters on a minor bump**: `^0.3.0` does not accept `0.4.0`, so `npm update` alone would
+leave the button's copy a minor behind (Dependabot uses `versioning-strategy: increase` for
+this). Only `@kanf/lily` gets version updates there; the template's other dependencies are
+ignored for version updates but still get security updates. Add a new template dependency
+to that `ignore` list too.
 
 **Two things live outside the repository.** On npmjs.com, the trusted publisher for this
 package must allow *direct* publishing. New trusted-publisher configurations default to

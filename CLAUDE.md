@@ -236,10 +236,14 @@ ruleset では強制していないので、守るのは手順の側。
 4. **確認と後始末**
    - `publish.yml` の run が通り、npm（`npm view @kanf/lily version`）と
      GitHub Release に新しい版があること。Release の本文が CHANGELOG の節であること
-   - **template の lock を上げる PR を入れる。** コマンドと範囲の理由は「踏みやすい穴」の
-     `template/package-lock.json` の項。リリース PR に入れられないのは、準備の時点では
-     その版が npm に無いため。
+   - **template の lily を上げる Dependabot の PR をマージする**（issue #42）。
+     `dependabot.yml` の `/template` の項が、平日の 9 時（日本時間）に `@kanf/lily` の
+     新しい版を見て、範囲と lock を上げる PR を作る。CI は普通に走るので、通ったら
+     squash でマージする。リリース PR に入れられないのは、準備の時点ではその版が npm に
+     無いため。
      CHANGELOG には書かない（このマージで走る tagpr の run は上のとおり失敗する）
+     - 次の平日の朝を過ぎても PR が来なければ、「踏みやすい穴」の
+       `template/package-lock.json` の項のコマンドで手で上げる
 
 **やり直し**
 
@@ -350,11 +354,15 @@ ruleset では強制していないので、守るのは手順の側。
     （`.../lily/tree/main/template`）。Cloudflare はこのディレクトリを新しい repo の
     root として扱うので、**中だけで完結していること**（外のファイルを参照しない）
   - **`template/package-lock.json` は commit する**（ボタンの `npm ci` が要る）。
-    lily を publish したら `cd template && npm install @kanf/lily@latest --package-lock-only`
-    （「リリース手順」の 4）。
+    lily を publish すると、Dependabot が範囲と lock を上げる PR を作る
+    （`dependabot.yml` の `/template` の項、「リリース手順」の 4）。手で上げるときは
+    `cd template && npm install @kanf/lily@<版> --package-lock-only`。
     **範囲も動かす** —— `^0.3.0` は `0.4.0` を受けないので、`npm update` だけだと
     ボタンから入る人が minor 1 つ古い lily で始まる（`init` は自分の版に書き換える
-    ので、そちらは影響を受けない）
+    ので、そちらは影響を受けない）。Dependabot は `versioning-strategy: increase` で動かす
+  - **template に依存を足したら、`dependabot.yml` の `/template` の `ignore` にも足す。**
+    version update を受けるのは `@kanf/lily` だけにしてある。`allow` で絞ると security
+    update まで止まるので、`update-types` 付きの `ignore` で止めている
 - **`migrations/` がスキーマの正。** 利用側は `node_modules/@kanf/lily/migrations` を
   `migrations_dir` で直接指す。リリースに入った migration は他人が本番の D1 に流すものに
   なるので、**追加のみで書く。** 利用側のデプロイは「マイグレーションが先、`wrangler deploy`
