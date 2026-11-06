@@ -76,7 +76,7 @@
     "@shikijs/langs": "^4.4.3",
     "@shikijs/rehype": "^4.4.3",
     "@shikijs/themes": "^4.4.3",
-    "hono": "^4.13.5",
+    "hono": "^4.13.16",
     "jose": "^6.2.10",
     "rehype-stringify": "^10.0.1",
     "remark-gfm": "^4.0.1",
