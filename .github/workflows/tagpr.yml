@@ -8,8 +8,8 @@ name: tagpr
 #
 # - main への push ごとに、リリース PR（ブランチ `tagpr-from-v<前の版>`）を main の
 #   上に作り直す。`package.json` の版は tagpr が上げ、`package-lock.json` と
-#   `CHANGELOG.md` の見出しは `scripts/tagpr/release-prepare.mjs` が直す。落ちた run では
-#   リリース PR を draft にし、次に成功した run で ready に戻す
+#   `CHANGELOG.md` の見出しは `scripts/tagpr/release-prepare.mjs` が直す。落ちた run と
+#   成功した run がリリース PR をどう扱うかは、上の README の「The tagpr workflow」
 # - リリース PR がマージされると、次の run がマージコミットに annotated のタグを打ち、
 #   `publish.yml` をそのタグで `workflow_dispatch` する（GITHUB_TOKEN で打ったタグでは
 #   `push: tags` が起動しないため）
@@ -28,8 +28,9 @@ jobs:
   tagpr:
     # **SHA は `scripts/tagpr/` に取り込んだ tagpr-scripts の commit にする。** subtree を
     # 取り込む PR で一緒に上げる（CLAUDE.md「リリース PR（tagpr）の仕組み」）。別の repo の
-    # reusable workflow は `actions.lock` では固定されない
-    uses: kan/tagpr-scripts/.github/workflows/tagpr.yml@53e4c0ad4258be0fc3000e2cd8dae36bc62b4769
+    # reusable workflow は `actions.lock` では固定されない。食い違いは ci.yml の
+    # `verify-subtree.mjs` が落とす
+    uses: kan/tagpr-scripts/.github/workflows/tagpr.yml@966347b01e86b2aea4d71da0604588b17642b880
     # 共通の workflow が使える権限の上限。4 つとも書く
     permissions:
       contents: write       # リリース PR のブランチとタグを push する
