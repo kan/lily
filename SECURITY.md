@@ -7,8 +7,9 @@ branches for older ones. If you are running something older, updating is the fix
 
 ## Reporting a vulnerability
 
-Use GitHub's private vulnerability reporting: the
-[Security tab](https://github.com/kan/lily/security) → *Report a vulnerability*.
+Use GitHub's private vulnerability reporting:
+<https://github.com/kan/lily/security/advisories/new> (the Security tab → *Report a
+vulnerability*).
 
 **Do not open an issue.** Issues here are public, so filing one is the disclosure.
 
