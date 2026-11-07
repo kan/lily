@@ -184,22 +184,26 @@ ruleset `protect-main` が PR と required check を強制する（「リポジ�
    - **最新の tagpr の run が success であること。** 失敗した run はリリース PR を
      draft にする（成功した run がリリース PR をどう扱うかは、`scripts/tagpr/README.md` の
      「The tagpr workflow」）。失敗していたら
-     `scripts/tagpr/release-prepare.mjs` の出力を読む。多いのは `## [Unreleased]` が
-     空のとき。CHANGELOG を書く PR をマージすると作り直される。
+     `scripts/tagpr/release-prepare.mjs` の出力を読む。`## [Unreleased]` が空なら、
+     push の run は tagpr を走らせずに緑で終わる（「tagpr is not run」の notice）。
+     空のまま落ちるのは、手で `gh workflow run tagpr.yml` したとき
+     （`workflow_dispatch` は空でも tagpr を走らせる）。CHANGELOG を書く PR を
+     マージすると作り直される。
      「already has `## [X.Y.Z]`」で落ちていたら、前のリリース PR のタグが打たれて
      いない（下の 3）
    - **版（PR のタイトル）が正しいこと。** 既定は patch。`enhancement` の PR が
-     入っていれば minor になる。手で変えるときはリリース PR にラベルを付けて
-     作り直す
+     入っていれば minor になる。手で変えるときはリリース PR にラベルを付ける。
+     付け外しすると、`tagpr-label.yml` がリリース PR を draft にして作り直し、
+     ready に戻す
 
      ```bash
      gh pr edit <番号> --add-label tagpr:minor
-     gh workflow run tagpr.yml --ref main
      ```
 
    - Files changed が `package.json` / `package-lock.json`（版の行だけ）と
      `CHANGELOG.md`（見出しとリンク定義）だけであること
-   - **ラベルを付け外ししたら、作り直してからマージする。** タグの版はマージの
+   - **ラベルを付け外ししたら、作り直しの run が終わり ready に戻ってからマージする。**
+     タグの版はマージの
      時点の `package.json` で決まり（tagpr は `versionFile` をマージ時に読む）、
      `package.json` と CHANGELOG の見出しは最後に作り直した時点の版のまま。
      作り直さずにマージすると、**ラベルの版ではなく前の版がそのまま出る**
@@ -238,15 +242,16 @@ ruleset `protect-main` が PR と required check を強制する（「リポジ�
    マージの push で走る tagpr の run がマージコミットにタグを打ち（annotated に
    打ち直す）、同じ run が `publish.yml` をそのタグで起動する。**タグが打たれるまで main へ
    何もマージしない。** tagpr の run は前の run が終わるまで待ち、待っている run は
-   新しい push の run に置き換えられる（cancelled になる）。置き換えられたら、
-   マージコミットの run を `gh run rerun <run-id>` で再実行するとタグが打たれる。
-   置き換えた側の run は「already has `## [X.Y.Z]`」で赤になる（版だけ上がった
-   リリース PR が draft で残ることがある。draft を手で外さず、マージもしない。
-   その PR がどう片付くかは `scripts/tagpr/README.md` の「The tagpr workflow」）。
+   新しい push の run に置き換えられる（cancelled になる）。置き換えられたマージの run は、
+   次の run が再実行してタグを打たせる（`scripts/tagpr/README.md` の「A missed tag is made
+   by re-running the run of its merge」）。それでもタグが無いとき（tagpr の run が
+   「already has `## [X.Y.Z]`」で赤になる）だけ、マージコミットの run を
+   `gh run rerun <run-id>` で手で再実行する。タグが打たれていない間は、版だけ上がった
+   リリース PR が draft で残ることがある。**draft を手で外さず、マージもしない。**
+   その PR がどう片付くかは `scripts/tagpr/README.md` の「The tagpr workflow」。
 
    リリースの直後は `## [Unreleased]` が空なので、次に CHANGELOG を書くまで
-   main への push ごとに tagpr の run が失敗する。これは想定どおりで、その間の
-   リリース PR はマージしない。
+   main への push の run は tagpr を走らせずに緑で終わり、リリース PR もできない。
 
 4. **確認と後始末**
    - `publish.yml` の run が通り、npm（`npm view @kanf/lily version`）と
@@ -256,7 +261,8 @@ ruleset `protect-main` が PR と required check を強制する（「リポジ�
      新しい版を見て、範囲と lock を上げる PR を作る。CI は普通に走るので、通ったら
      squash でマージする。リリース PR に入れられないのは、準備の時点ではその版が npm に
      無いため。
-     CHANGELOG には書かない（このマージで走る tagpr の run は上のとおり失敗する）
+     CHANGELOG には書かない（このマージで走る tagpr の run は、上のとおり tagpr を
+     走らせずに終わる）
      - 次の平日の朝を過ぎても PR が来なければ、「踏みやすい穴」の
        `template/package-lock.json` の項のコマンドで手で上げる
 
