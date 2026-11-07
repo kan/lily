@@ -182,7 +182,8 @@ ruleset `protect-main` が PR と required check を強制する（「リポジ�
    ```
 
    - **最新の tagpr の run が success であること。** 失敗した run はリリース PR を
-     draft にする（次に成功した run が ready に戻す）。失敗していたら
+     draft にする（成功した run がリリース PR をどう扱うかは、`scripts/tagpr/README.md` の
+     「The tagpr workflow」）。失敗していたら
      `scripts/tagpr/release-prepare.mjs` の出力を読む。多いのは `## [Unreleased]` が
      空のとき。CHANGELOG を書く PR をマージすると作り直される。
      「already has `## [X.Y.Z]`」で落ちていたら、前のリリース PR のタグが打たれて
@@ -241,7 +242,7 @@ ruleset `protect-main` が PR と required check を強制する（「リポジ�
    マージコミットの run を `gh run rerun <run-id>` で再実行するとタグが打たれる。
    置き換えた側の run は「already has `## [X.Y.Z]`」で赤になる（版だけ上がった
    リリース PR が draft で残ることがある。draft を手で外さず、マージもしない。
-   タグを打つ run は ready に戻さないので、その後に通った push の run が作り直して戻す）。
+   その PR がどう片付くかは `scripts/tagpr/README.md` の「The tagpr workflow」）。
 
    リリースの直後は `## [Unreleased]` が空なので、次に CHANGELOG を書くまで
    main への push ごとに tagpr の run が失敗する。これは想定どおりで、その間の
@@ -261,20 +262,27 @@ ruleset `protect-main` が PR と required check を強制する（「リポジ�
 
 **やり直し**
 
+- マージの tagpr の run が、タグを打った後に落ちたとき（annotated への打ち直しか
+  `publish.yml` の起動）は、**その tagpr の run を再実行すれば直る**（`scripts/tagpr/README.md`
+  の「The tagpr workflow」。再実行できなくなった run の手順もそこにある）。
+  **`publish.yml` を既に起動した tagpr の run は再実行しない**（`publish.yml` がもう一度走り、
+  同じ版は publish できずに落ちる）。`publish.yml` は `push: tags` も持つので、タグを
+  手で push したら `gh workflow run` を重ねない
 - `publish.yml` が npm へ出す前に落ちたら、直してから
   `gh workflow run publish.yml --ref vX.Y.Z` で起動し直す
 - **やり直す前に `npm view @kanf/lily@X.Y.Z version` で npm に出たかを見る。**
   `publish` ジョブが赤でも、npm には届いていることがある（応答の前に切れたとき）
 - npm へは出て Release の作成（`release` ジョブ）だけが落ちたら、
-  `gh run rerun <run-id> --failed` で落ちたジョブだけをやり直す。**run 全体を
-  再実行しない**（`publish` ジョブも走り、同じ版は publish できずに落ちる）。
+  `gh run rerun <run-id> --failed` で落ちたジョブだけをやり直す。**`publish.yml` の
+  run 全体を再実行しない**（`publish` ジョブも走り、同じ版は publish できずに落ちる）。
   `publish` が赤なのに npm に出ていたときや、artifact の保持期間（7 日）を
   過ぎていたら、
   `node scripts/tagpr/release-notes.mjs vX.Y.Z > notes.md` から
   `gh release create vX.Y.Z --title vX.Y.Z --verify-tag --notes-file notes.md` を手で回す
 - **`publish.yml` はタグの指すコミットで動く。** npm へ出る前に落ちた原因が
   コードや CHANGELOG にあるなら、直した PR をマージしてタグを打ち直す
-  （`git push origin :refs/tags/vX.Y.Z && git tag -d vX.Y.Z` で消し、直した
+  （`git fetch --force origin tag vX.Y.Z` で手元のタグを origin に揃えてから
+  `git push origin :refs/tags/vX.Y.Z && git tag -d vX.Y.Z` で消し、直した
   マージコミットに **annotated で**打って push する。
   `git tag -a -m "Release vX.Y.Z" vX.Y.Z <コミット>`。`push: tags` で起動する）。CHANGELOG は
   main ではもう `## [X.Y.Z] - 日付` になっている節を直す。**タグを消している間に
