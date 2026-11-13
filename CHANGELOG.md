@@ -9,6 +9,8 @@ Versions up to 0.5.2 are listed on the
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-13
+
 ### Added
 
 - Public pages now answer AI agents. A request with `Accept: text/markdown` to the
@@ -50,5 +52,6 @@ Versions up to 0.5.2 are listed on the
   tags the release and publishes it to npm. The GitHub release notes are now
   this file's section for the version instead of a list of commits.
 
+[0.6.0]: https://github.com/kan/lily/releases/tag/v0.6.0
 [0.5.4]: https://github.com/kan/lily/releases/tag/v0.5.4
 [0.5.3]: https://github.com/kan/lily/releases/tag/v0.5.3
