@@ -141,8 +141,9 @@ PR と main への push で、`verify-lockfile.yml` が lockfile と `uses:` の
   どちらも追わない。lockfile の形式が上がって `--verify` が落ちたら、手元の
   `gh actions-lock` と同じ版に手で上げる
 - 別の repo の reusable workflow を呼ぶ行（`jobs.<id>.uses`）は lockfile では固定され
-  ない。commit の SHA で書く。今あるのは `tagpr.yml` が kan/tagpr-scripts の共通の
-  workflow を呼ぶ行だけで、SHA は subtree と揃える（「リリース PR（tagpr）の仕組み」）。
+  ない。commit の SHA で書く。今あるのは `tagpr.yml` / `tagpr-label.yml` / `publish.yml` が
+  kan/tagpr-scripts の共通の workflow を呼ぶ 3 行で、SHA は 3 行とも subtree と揃える
+  （「リリース PR（tagpr）の仕組み」）。
   その中の action（tagpr など）は tagpr-scripts の `actions.lock` が固定する。
   **Dependabot にはこの行を上げさせない**（`dependabot.yml` の `ignore`）。SHA だけが
   上がると、subtree の写しと実際に動く workflow が食い違う。ignore を外さないこと
@@ -165,7 +166,7 @@ ruleset `protect-main` が PR と required check を強制する（「リポジ�
   多いので、CHANGELOG に書くかは中身で決める（脆弱性の修正や、`template/` の
   依存のように利用者の手元に入るものは書く）。ただし**リリース後に template の
   lily だけを上げる PR は書かない**（その版のことはその版の節に書いてある。
-  「リリース手順」の 4）
+  「リリース手順」の 5）
 
 ## リリース手順
 
@@ -253,9 +254,29 @@ ruleset `protect-main` が PR と required check を強制する（「リポジ�
    リリースの直後は `## [Unreleased]` が空なので、次に CHANGELOG を書くまで
    main への push の run は tagpr を走らせずに緑で終わり、リリース PR もできない。
 
-4. **確認と後始末**
-   - `publish.yml` の run が通り、npm（`npm view @kanf/lily version`）と
-     GitHub Release に新しい版があること。Release の本文が CHANGELOG の節であること
+4. **stage した版を approve して公開する**
+
+   `publish.yml` は npm へ `npm stage publish` で出す。**stage した版は、approve する
+   まで公開されない**（npm の Trusted Publisher は stage publish だけを許してある）。
+   GitHub Release は approve を待たずに stage の直後に作られる。**approve するまで、
+   Release にある版を `npm install` できない**ので、run が通ったらすぐ approve する。
+
+   ```bash
+   gh run view <publish.yml の run ID> --web   # run の Summary に stage ID とコマンドが出る
+   npm stage list @kanf/lily                   # ここからも stage ID を引ける
+   npm stage view <stage ID>             # 中身（版、dist-tag、ファイル）を見る
+   npm stage approve <stage ID>          # 2FA を求められる
+   ```
+
+   - `publish.yml` の 3 つのジョブ（`publish / Build and check`、`publish / Stage on npm`、
+     `publish / Create the GitHub release`）が通っていることを確かめてから approve する
+   - 中身がおかしければ approve せず `npm stage reject <stage ID>` で捨て、GitHub Release を
+     手で消す（下の「やり直し」）
+
+5. **確認と後始末**
+   - approve の後に、npm（`npm view @kanf/lily version` と `npm view @kanf/lily dist-tags`
+     の `latest`）と GitHub Release に新しい版があること。Release の本文が CHANGELOG の
+     節であること
    - **template の lily を上げる Dependabot の PR をマージする**（issue #42）。
      `dependabot.yml` の `/template` の項が、平日の 9 時（日本時間）に `@kanf/lily` の
      新しい版を見て、範囲と lock を上げる PR を作る。CI は普通に走るので、通ったら
@@ -271,20 +292,33 @@ ruleset `protect-main` が PR と required check を強制する（「リポジ�
 - マージの tagpr の run が、タグを打った後に落ちたとき（annotated への打ち直しか
   `publish.yml` の起動）は、**その tagpr の run を再実行すれば直る**（`scripts/tagpr/README.md`
   の「The tagpr workflow」。再実行できなくなった run の手順もそこにある）。
-  **`publish.yml` を既に起動した tagpr の run は再実行しない**（`publish.yml` がもう一度走り、
-  同じ版は publish できずに落ちる）。`publish.yml` は `push: tags` も持つので、タグを
-  手で push したら `gh workflow run` を重ねない
-- `publish.yml` が npm へ出す前に落ちたら、直してから
+  **`publish.yml` を既に起動した tagpr の run は再実行しない**（`publish.yml` がもう一度走る。
+  approve の前なら同じ版をもう一度 stage して registry に断られる）。`publish.yml` は
+  `push: tags` も持つので、タグを手で push したら `gh workflow run` を重ねない
+- **原因が共通の workflow（`publish-npm.yml`）や `scripts/tagpr/` の側にあるなら、
+  kan/tagpr-scripts に issue を立てる**（run の URL、落ちたジョブとステップ、エラーの
+  全文を添える）。ここでは直さない
+- `publish.yml` が npm へ stage する前に落ちたら、直してから
   `gh workflow run publish.yml --ref vX.Y.Z` で起動し直す
-- **やり直す前に `npm view @kanf/lily@X.Y.Z version` で npm に出たかを見る。**
-  `publish` ジョブが赤でも、npm には届いていることがある（応答の前に切れたとき）
-- npm へは出て Release の作成（`release` ジョブ）だけが落ちたら、
-  `gh run rerun <run-id> --failed` で落ちたジョブだけをやり直す。**`publish.yml` の
-  run 全体を再実行しない**（`publish` ジョブも走り、同じ版は publish できずに落ちる）。
-  `publish` が赤なのに npm に出ていたときや、artifact の保持期間（7 日）を
-  過ぎていたら、
+- **やり直す前に、npm のどこまで進んだかを見る。** stage 済みかは
+  `npm stage list @kanf/lily`、公開済み（approve 済み）かは
+  `npm view @kanf/lily@X.Y.Z version`。**stage 済みで未承認の版は `npm view` では
+  見えない。** `publish` ジョブが赤でも、npm には届いていることがある（応答の前に
+  切れたとき）
+- stage は済んで Release の作成（`release` ジョブ）だけが落ちたら、
+  `gh run rerun <run-id> --failed` で落ちたジョブだけをやり直す。**approve の前は
+  `publish.yml` の run 全体を再実行しない**（共通の workflow は stage 済みの版を
+  見分けられず、もう一度 stage して registry に断られる）。approve の後なら
+  「Re-run all jobs」でもよい（npm に既にある版は stage を飛ばし、Release を書き直す）。
+  artifact の保持期間（7 日）を過ぎていたら、
   `node scripts/tagpr/release-notes.mjs vX.Y.Z > notes.md` から
-  `gh release create vX.Y.Z --title vX.Y.Z --verify-tag --notes-file notes.md` を手で回す
+  `gh release create vX.Y.Z --title vX.Y.Z --verify-tag --notes-file notes.md` を手で回す。
+  Release が既にあれば（`gh release view vX.Y.Z`）、`create` ではなく
+  `gh release edit vX.Y.Z --title vX.Y.Z --notes-file notes.md` で書き直す
+- stage した版の中身がおかしいときは、approve せず `npm stage reject <stage ID>` で
+  捨て、GitHub Release を手で消す（`gh release delete vX.Y.Z`）。その後は下の
+  タグの打ち直しと同じ。**reject した版の番号をもう一度 stage できるかは確かめていない。**
+  registry に断られたら、その版は捨てて次の版で出す
 - **`publish.yml` はタグの指すコミットで動く。** npm へ出る前に落ちた原因が
   コードや CHANGELOG にあるなら、直した PR をマージしてタグを打ち直す
   （`git fetch --force origin tag vX.Y.Z` で手元のタグを origin に揃えてから
@@ -296,7 +330,14 @@ ruleset `protect-main` が PR と required check を強制する（「リポジ�
   版だけ上がったリリース PR が残ることがある。** そのリリース PR はマージせず、
   タグを打ち直した後に閉じる。打ち直しが済むまで他の PR はマージしない
   （まだ踏んでいない手順なので、初回はリリース PR の状態を見ながら進める）
-- **npm へ出た版は打ち直せない**（同じ版は二度と publish できない）。次の版で直す
+- **npm で approve した版は打ち直せない**（同じ版は二度と publish できない）。次の版で直す
+- 原因の切り分けがつかないまま止めておけないときは、`publish.yml` と `actions.lock` だけを
+  共通の workflow へ移す前（issue #58 の PR のマージより前）の内容に戻し、タグを打ち直して
+  出してよい。**その PR を丸ごと revert しない**（subtree の取り込みと `tagpr.yml` /
+  `tagpr-label.yml` の SHA も戻り、次の `git subtree pull` が壊れる）。戻した
+  `publish.yml` の行は `verify-subtree.mjs` の照合から外れる。
+  前の workflow は direct publish なので、npm の Trusted Publisher で direct publish も
+  許す必要がある。そのときも kan/tagpr-scripts に issue を立てる
 
 ### リリース PR（tagpr）の仕組み
 
@@ -322,8 +363,8 @@ ruleset `protect-main` が PR と required check を強制する（「リポジ�
   だけで書く。tagpr の action は tagpr-scripts の `actions.lock` が固定する（「action の固定」）
 - **CHANGELOG と GitHub の Release は tagpr に作らせない**（`changelog = false` /
   `release = false`）。tagpr の CHANGELOG は PR のタイトルを並べるだけ。Release は
-  `publish.yml` が npm publish の**後**に作る（publish に失敗した版の Release を
-  残さない）
+  `publish.yml` が npm へ stage した**後**に作る（stage に失敗した版の Release を
+  残さない。approve は待たない）
 - **CHANGELOG の読み方（節の見出し、コードフェンス、末尾のリンク定義）は
   `scripts/tagpr/changelog.mjs` の 1 か所に置く。** `release-prepare.mjs` と
   `release-notes.mjs` はそれを import する。2 か所に書くと、リリース PR は通るのに
@@ -338,8 +379,8 @@ ruleset `protect-main` が PR と required check を強制する（「リポジ�
 
   - **`-S` を付ける。** subtree は `commit-tree` でコミットを作るので、`commit.gpgsign`
     が効かず未署名になる
-  - **同じ PR で、`tagpr.yml` の `uses: kan/tagpr-scripts/...@<SHA>` を取り込んだ
-    tagpr-scripts の commit に上げる。** squash のコミットのメッセージにある
+  - **同じ PR で、`tagpr.yml` / `tagpr-label.yml` / `publish.yml` の
+    `uses: kan/tagpr-scripts/...@<SHA>` を取り込んだ tagpr-scripts の commit に上げる。** squash のコミットのメッセージにある
     `git-subtree-split` の SHA（lily の squash やマージのコミットの SHA ではない）
   - **この PR だけはマージコミットで入れる**（`gh pr merge <番号> --merge`）。
     subtree は前回の取り込みを自分のコミットから探すので、squash すると次の pull が
@@ -350,6 +391,16 @@ ruleset `protect-main` が PR と required check を強制する（「リポジ�
   `workflow_dispatch` は例外として起動できる。`workflow_call` で同じ run から呼ぶ形に
   しないこと。run の主体が `tagpr.yml`、ref が `refs/heads/main` になり、npm の
   Trusted Publisher（`publish.yml` を登録してある）と provenance がそれを名乗る
+- **`publish.yml` は kan/tagpr-scripts の共通の workflow（`publish-npm.yml`）を呼ぶだけ**
+  （issue #58、kan/tagpr-scripts#15）。権限ごとの 3 つのジョブ、タグと版の検査、
+  `npm stage publish`、Release の作成はそちらにある。動き、入力、落ちたときの扱いは
+  `scripts/tagpr/README.md` の「The npm publish workflow」
+  - **ファイル名を変えない。** npm の Trusted Publisher は、reusable workflow の側ではなく
+    呼ぶ側の workflow のファイル名で照合する
+  - **npm の Trusted Publisher は「npm stage publish」だけを許す。** direct publish は
+    許さない。workflow が乗っ取られても、approve なしには公開されない
+  - `concurrency`（1 つのタグに 1 run、止めない）は呼ぶ側の `publish.yml` に置く。
+    共通の workflow は持たないので deadlock しない
 - **`tagpr.yml` の呼ぶジョブには、権限を 4 つとも書く**（`actions: write` を含む）。
   共通の workflow が使える上限で、`actions: write` は中の `release` ジョブだけが使う
 - **`tagpr.yml` に `concurrency` を付けない。** run を並べるのは共通の workflow の
@@ -383,7 +434,7 @@ ruleset `protect-main` が PR と required check を強制する（「リポジ�
     root として扱うので、**中だけで完結していること**（外のファイルを参照しない）
   - **`template/package-lock.json` は commit する**（ボタンの `npm ci` が要る）。
     lily を publish すると、Dependabot が範囲と lock を上げる PR を作る
-    （`dependabot.yml` の `/template` の項、「リリース手順」の 4）。手で上げるときは
+    （`dependabot.yml` の `/template` の項、「リリース手順」の 5）。手で上げるときは
     `cd template && npm install @kanf/lily@<版> --package-lock-only`。
     **範囲も動かす** —— `^0.3.0` は `0.4.0` を受けないので、`npm update` だけだと
     ボタンから入る人が minor 1 つ古い lily で始まる（`init` は自分の版に書き換える

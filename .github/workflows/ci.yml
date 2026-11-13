@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      # **`scripts/tagpr/` の subtree と、tagpr.yml が呼ぶ共通の workflow の SHA が
+      # **`scripts/tagpr/` の subtree と、tagpr.yml / tagpr-label.yml / publish.yml が呼ぶ共通の workflow の SHA が
       # 同じ commit を指すこと。** 片方だけ動くと、取り込んだスクリプトと実際に動く
       # workflow が黙って食い違う（CLAUDE.md「リリース PR（tagpr）の仕組み」）。
       # 依存を使わないので `npm ci` より前に置く
