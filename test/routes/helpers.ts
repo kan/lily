@@ -114,6 +114,10 @@ export const SITE_CONFIG: SiteConfig = {
   name: 'マウント付き',
   description: 'mounted',
   author: 'だれか',
+  // JSON-LD の `Person`。**root mount の設定には置かない**ので、無いときに項目ごと
+  // 消えることを 2 つのアプリの差で見られる。
+  authorUrl: 'https://example.test/about/',
+  sameAs: ['https://github.com/example', 'https://bsky.app/profile/example.test'],
   lang: 'ja',
   timeZone: 'Asia/Tokyo',
   ogImage: { url: `${SITE}${MOUNT}/ogp.png`, width: 1200, height: 630 },

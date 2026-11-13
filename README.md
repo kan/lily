@@ -62,7 +62,8 @@ Descriptions are generated from the opening of the body when you have not writte
 
 **A public site, server-rendered.** Index with paging, post pages, tag pages, a 404, RSS 2.0
 and Atom (both full text), a sitemap, and `posts.json` for another site that wants to list
-your recent posts.
+your recent posts. **AI agents get the same URLs as Markdown** (`Accept: text/markdown`), with
+JSON-LD and `Link` headers on the HTML — [details](./docs/agents.md).
 
 **An admin UI, shipped prebuilt.** List, edit, preview, drag-and-drop images, change paths,
 publication date and time, tag completion, paging, filtering by tag or keyword, a page that
@@ -162,6 +163,7 @@ takes `npx wrangler secret put ADMIN_PASSWORD`, 12 characters or more.
 | [Configuration](./docs/configuration.md) | Every field of `createLily`, the URLs lily serves, and what the package exports |
 | [Authentication](./docs/authentication.md) | The three adapters, what `passwordAuth` does and does not store, and how to write your own |
 | [Themes](./docs/themes.md) | The `Theme` interface, and what the default theme promises so that a copy of it keeps the same properties |
+| [AI agents](./docs/agents.md) | Markdown by content negotiation, how it is cached, the `Link` headers and the JSON-LD |
 | [Images](./docs/images.md) | R2 as the original, Cloudflare Images as an optional layer, and the caching that follows from it |
 | [Import, export and backups](./docs/portable.md) | The archive format, the frontmatter contract, how an import behaves, and the daily copy to a second bucket |
 | [Adding lily to an existing Worker](./docs/existing-worker.md) | The bindings, the assets rule and the build command, for a project that already exists |

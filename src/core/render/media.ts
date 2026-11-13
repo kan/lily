@@ -28,15 +28,29 @@ export type MediaPluginOptions = {
   readonly onUnresolved: (reference: string) => void;
 };
 
+/**
+ * 本文の参照（URL の値）を添付と突き合わせる。**規則はこの 1 本だけ。**
+ *
+ * 描画（`rehypeMedia`）と、Markdown のまま配るときの書き換え（`markdown-media.ts`）が
+ * 両方これを使う。別に書くと、HTML では画像に解決されるのに Markdown では相対の
+ * まま残る参照ができる。
+ */
+export function createMediaMatcher<M extends MediaRef>(
+  media: readonly M[],
+): (value: string) => M | null {
+  const byFilename = new Map(media.map((m) => [m.filename, m]));
+  return (value) => {
+    const filename = relativeFilename(value);
+    return filename === null ? null : (byFilename.get(filename) ?? null);
+  };
+}
+
 export function rehypeMedia(options: MediaPluginOptions) {
-  const byFilename = new Map(options.media.map((m) => [m.filename, m]));
+  const match = createMediaMatcher(options.media);
 
   /** 突き合わせられたら添付、そうでなければ null。 */
   const resolve = (value: string): RenderMedia | null => {
-    const filename = relativeFilename(value);
-    if (filename === null) return null;
-
-    const media = byFilename.get(filename);
+    const media = match(value);
     if (media) return media;
     // `./` で書いたのに添付が無い＝画像を貼り忘れている可能性が高い。
     // 素の `foo.md` は記事間リンクのことが多いので黙って通す。

@@ -5,7 +5,7 @@
  * `post_paths` の存在を知らずに済むようにする。
  */
 import type { MediaRow, PostRow, PostWithPathRow, TagRow } from './db/types.ts';
-import type { Urls } from './paths.ts';
+import type { UrlOptions, Urls } from './paths.ts';
 import { postDescription } from './summary.ts';
 import type { PostSummaryView, PostView, TagView } from './theme.ts';
 
@@ -17,6 +17,8 @@ export function toPostSummary(
   urls: Urls,
   row: PostWithPathRow,
   tags: readonly TagRow[] = [],
+  /** 記事の URL の組み方。Markdown 版は絶対 URL で載せる（`agent/markdown.ts`）。 */
+  options?: UrlOptions,
 ): PostSummaryView {
   return {
     title: row.title,
@@ -24,7 +26,7 @@ export function toPostSummary(
     description: postDescription(row),
     publishedAt: row.published_at === null ? null : new Date(row.published_at),
     updatedAt: new Date(row.updated_at),
-    url: urls.post(row.canonical_path),
+    url: urls.post(row.canonical_path, options),
     tags: tags.map((t) => toTagView(urls, t)),
     isDraft: row.status === 'draft',
   };

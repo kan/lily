@@ -8,7 +8,9 @@ these types and nothing else.
 | Key | What |
 |---|---|
 | `site.url` | The origin you serve from. Absolute URLs in feeds and `<link rel=canonical>` start here |
-| `site.name` / `site.description` / `site.author` | Shown in `<title>`, OGP and the feeds |
+| `site.name` / `site.description` / `site.author` | Shown in `<title>`, OGP, the feeds and the JSON-LD |
+| `site.authorUrl` | Optional. A page about the author, emitted as the JSON-LD `Person`'s `url`. Omit it and the `Person` carries only a name |
+| `site.sameAs` | Optional. URLs of the author's other profiles (GitHub, Bluesky, …), emitted as the `Person`'s `sameAs`. **lily knows no account of yours**, so nothing appears here unless you list it |
 | `site.lang` | BCP 47 language of the content. **No default in core** — a site in another language must not be quietly served as Japanese |
 | `site.uiLang` | BCP 47 language of the *words the theme and the login page put on screen*, if that differs from the content. Defaults to `lang`; a language lily has no table for falls back to English, and [the theme can carry its own words](./themes.md#changing-the-words-without-copying-the-theme). **Never chosen from `Accept-Language`** — public pages are shared-cached, so one reader's language would be served to the next |
 | `site.timeZone` | IANA name used to cut dates into days. **No default either**: falling back to the runtime's zone changes a post's date between the Worker and the browser |
@@ -43,6 +45,9 @@ Everything is relative to `mountPath`.
 The first segment of a post path cannot collide with any of these: the route names, the URL
 builder and the path validator all read the same table (`core/routes/fixed.ts`), so "the URL
 can be generated but is not reserved" cannot quietly become true.
+
+The index, post, tag and not-found pages also answer `Accept: text/markdown` with Markdown at
+the same URL ([AI agents](./agents.md)).
 
 ## Public API
 
