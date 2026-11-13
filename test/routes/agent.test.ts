@@ -182,6 +182,12 @@ describe('一覧の Markdown 版', () => {
     expect(body).toContain('- [\\[罠\\](x) \\*強調\\*](<');
   });
 
+  it('題の改行は空白 1 つに寄せる（一覧の 1 項目を切らない）', async () => {
+    await seedPost({ title: ' 一行目 \n\n  二行目 ', path: 'multi' });
+    const body = await (await getWith(`${MOUNT}/`, MD)).text();
+    expect(body).toContain('- [一行目 二行目](<');
+  });
+
   it('説明が行頭の記号で始まっても、入れ子のリストにしない', async () => {
     await seedPost({ path: 'a', description: '- 下書き & 1. メモ' });
     await seedPost({ path: 'b', description: '1. 番号' });

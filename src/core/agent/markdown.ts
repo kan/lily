@@ -97,9 +97,13 @@ export function notFoundMarkdown(site: SiteConfig, urls: Urls): string {
  *   続きの行に置くので、`- 下書き` のままだと入れ子のリストになる
  */
 function inline(text: string): string {
+  // 改行は正規表現（`/\s*\n\s*/`）で寄せない。空白が長く続く題で照合が長さの 2 乗に
+  // なる（CodeQL の js/polynomial-redos）。行に分けて前後の空白を落とす。
   return text
-    .trim()
-    .replace(/\s*\n\s*/g, ' ')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+    .join(' ')
     .replace(/[\\`*_[\]<>#!|&]/g, '\\$&')
     .replace(/^[-+=]/, '\\$&')
     .replace(/^(\d+)([.)])/, '$1\\$2');
