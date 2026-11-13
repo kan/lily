@@ -140,34 +140,32 @@ into the version's section (`scripts/tagpr/release-prepare.mjs`). Deciding to re
 that pull request — a separate decision from changing the code. Merging it tags the commit,
 and tagpr then starts `.github/workflows/publish.yml` on the tag.
 
-Publishing goes through npm Trusted Publishing (OIDC), so no token sits in the repository
-secrets. The workflow refuses to publish when the tag and `package.json`'s `version`
-disagree, or when `CHANGELOG.md` has no section for the version: either would otherwise
-publish the wrong thing, or fail with a message that cannot be traced back to the tag.
+`publish.yml` only calls the shared workflow `publish-npm.yml` of kan/tagpr-scripts, with
+`npm run typecheck && npm test` as its check. What it does — the three jobs split by
+permission, the checks on the tag before `npm ci`, the GitHub Release made from the
+`CHANGELOG.md` section, and how to re-run a failed job — is in the "The npm publish
+workflow" section of [`scripts/tagpr/README.md`](scripts/tagpr/README.md). The tarball is
+still built by `prepack` (`npm run build`) during `npm pack`.
 
-**The workflow is three jobs, split by what each may do.** `build` checks, tests and runs
-`npm pack` with no write permission at all — it is the only job where dependency code runs.
-`publish` holds `id-token: write` and does nothing but `npm publish` the tarball `build`
-made: no checkout, no `npm ci`, no `npm install -g npm` (Node 24's own npm is new enough
-for Trusted Publishing). Dependency code running next to that permission could mint the
-npm token itself and publish any version it liked. What the split does not stop is a
-dependency rewriting `dist/` during the build in `build`: that tarball is published as is.
-
-`release` then **creates the GitHub Release** for that tag, with that `CHANGELOG.md`
-section as its notes (`scripts/tagpr/release-notes.mjs`). It runs after `publish`, so a
-release never exists for a version that failed to publish, and if only this job fails it
-can be re-run on its own.
+**The workflow stages the version; it does not publish it.** It goes to npm through
+Trusted Publishing (OIDC) with `npm stage publish`, so no token sits in the repository
+secrets and nothing is public until a maintainer approves it with 2FA: take the stage ID
+from the run's summary, look at it with `npm stage view <stage ID>`, then
+`npm stage approve <stage ID>`. The GitHub Release is made right after the stage, before
+the approval. **Keep the file name `publish.yml`**: npm's Trusted Publisher checks the name
+of the calling workflow, not of the shared one.
 
 **`scripts/tagpr/` is a `git subtree` of
 [kan/tagpr-scripts](https://github.com/kan/tagpr-scripts)**, shared with wema and
 wema-kake. Do not edit it here: change that repository, then
-`git subtree pull --prefix=scripts/tagpr https://github.com/kan/tagpr-scripts.git main --squash`,
+`git subtree pull -S --prefix=scripts/tagpr https://github.com/kan/tagpr-scripts.git main --squash`,
 and merge that pull request with a merge commit rather than a squash — `git subtree` finds
 the last import from the commits it made. In the same pull request, move the
-`uses: kan/tagpr-scripts/.github/workflows/tagpr.yml@<SHA>` line in
-`.github/workflows/tagpr.yml` to the tagpr-scripts commit just pulled (the
-`git-subtree-split` line of the squash commit): that workflow runs tagpr, and its copy in
-`scripts/tagpr/` should match what runs.
+`uses: kan/tagpr-scripts/.github/workflows/...@<SHA>` lines in `tagpr.yml`,
+`tagpr-label.yml` and `publish.yml` (under `.github/workflows/`) to the tagpr-scripts commit
+just pulled (the `git-subtree-split` line of the squash commit): those workflows run from
+tagpr-scripts, and their copy in `scripts/tagpr/` should match what runs
+(`scripts/tagpr/verify-subtree.mjs` in CI checks it).
 
 After a release, Dependabot points the template at what was just published: the
 `/template` entry of `.github/dependabot.yml` checks `@kanf/lily` every weekday morning
@@ -182,7 +180,8 @@ ignored for version updates but still get security updates. Add a new template d
 to that `ignore` list too.
 
 **Two things live outside the repository.** On npmjs.com, the trusted publisher for this
-package must allow *direct* publishing. New trusted-publisher configurations default to
-staged publishes only, and `npm publish` then fails with `403 OIDC permission denied`. On
+package (`publish.yml`) must allow "npm stage publish" only, not direct publishing, so that
+nothing from the workflow is public without an approval. Without "npm stage publish"
+allowed, the stage fails with `403 OIDC permission denied`. On
 GitHub, *Allow GitHub Actions to create and approve pull requests* must be on, or tagpr
 cannot open the release pull request.

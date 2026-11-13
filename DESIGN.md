@@ -42,6 +42,15 @@ lily を**パッケージ解決だけで**参照していた（`require.resolve`
   代わりになる。依存のコードが走るのは権限の無い `build` だけにし、`publish` は
   `build` が作った tgz を出すだけにした。**ビルドの途中で `dist/` を書き換えられる
   ことまでは防げない**（配るものがビルドの出力である以上、分割の外の話）
+- **publish のワークフローは kan/tagpr-scripts の共通の workflow（`publish-npm.yml`）に
+  移した**（issue #58、kan/tagpr-scripts#15）。3 つのジョブに分けた形は wema など
+  ほかの repo でも同じで、直すたびに写しを揃えることになるため。`publish.yml` は
+  それを呼ぶだけになり、ファイル名は残した（npm の Trusted Publisher は呼ぶ側の
+  ファイル名で照合する）
+- **npm へは `npm stage publish` で出し、公開は手で approve する**（同じ移行で）。
+  `id-token: write` のジョブを分けても、workflow そのものが乗っ取られれば Trusted
+  Publisher を通って公開される。stage なら、公開にはメンテナの 2FA 付きの approve が
+  要る。代わりにリリースのたびに手の作業が 1 つ増える
 - **版上げとタグは tagpr のリリース PR で行う**（0.5.2 の次の版から。それまでは
   `npm version` で上げたコミットに手でタグを打っていた）。リリースを決める操作を
   「リリース PR のマージ」1 つにし、`CHANGELOG.md` の節をそのままリリースノートに
