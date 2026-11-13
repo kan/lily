@@ -43,6 +43,7 @@ updates:
       interval: daily
       time: '09:00'
       timezone: Asia/Tokyo
+    # lily だけを上げる PR は、ci.yml の automerge-template のジョブが、CI が通ったらマージする。
     # **範囲も動かす。** `^0.5.0` は `0.6.0` を受けないので、lock だけ上げると minor を
     # 上げたときに 1 つ古いまま残る
     versioning-strategy: increase

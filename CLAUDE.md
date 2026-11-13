@@ -277,13 +277,20 @@ ruleset `protect-main` が PR と required check を強制する（「リポジ�
    - approve の後に、npm（`npm view @kanf/lily version` と `npm view @kanf/lily dist-tags`
      の `latest`）と GitHub Release に新しい版があること。Release の本文が CHANGELOG の
      節であること
-   - **template の lily を上げる Dependabot の PR をマージする**（issue #42）。
+   - **template の lily を上げる Dependabot の PR がマージされたことを確かめる**（issue #42）。
      `dependabot.yml` の `/template` の項が、平日の 9 時（日本時間）に `@kanf/lily` の
-     新しい版を見て、範囲と lock を上げる PR を作る。CI は普通に走るので、通ったら
-     squash でマージする。リリース PR に入れられないのは、準備の時点ではその版が npm に
+     新しい版を見て、範囲と lock を上げる PR を作る。**`ci.yml` の `automerge-template` の
+     ジョブが、`test` と `template-lock`（雛形をその lock のまま `npm ci` して build、
+     typecheck、`wrangler deploy --dry-run`）と required check が通ったら squash で
+     マージする。** リリース PR に入れられないのは、準備の時点ではその版が npm に
      無いため。
-     CHANGELOG には書かない（このマージで走る tagpr の run は、上のとおり tagpr を
-     走らせずに終わる）
+     CHANGELOG には書かない（GITHUB_TOKEN でのマージなので、main への push の run は
+     起動しない）
+     - **PR が来た日を過ぎても開いたままなら、自動でマージされなかった。** major の版へ
+       上げる PR か、人が push や再実行をした PR（マージのステップかジョブが飛ばされ、CI は緑のまま）、`template/package.json` と
+       `template/package-lock.json` の他にも変更がある PR（ジョブが赤になる）、検査の
+       失敗やマージの衝突（どこかのジョブが赤になる）のどれか。原因を見て、直すか中身を
+       確かめてから、手で squash でマージする
      - 次の平日の朝を過ぎても PR が来なければ、「踏みやすい穴」の
        `template/package-lock.json` の項のコマンドで手で上げる
 
