@@ -25,6 +25,15 @@ export type { RenderMedia } from './media.ts';
  */
 export const RENDERER_VERSION = '2';
 
+/**
+ * 本文を読む構文（CommonMark + GFM）。**描画と、Markdown のまま配るときの書き換え
+ * （`markdown-media.ts`）が同じものを使う。** 片方にだけ構文を足すと、同じ本文が
+ * 2 通りに読まれ、書き換えが描画と違う箇所を指す。
+ */
+export function markdownSyntax() {
+  return unified().use(remarkParse).use(remarkGfm);
+}
+
 export type RenderOptions = {
   /** 記事に紐づく添付。本文の `./sample.png` はこれと突き合わせる。 */
   readonly media?: readonly RenderMedia[];
@@ -45,9 +54,7 @@ export async function renderMarkdown(
   const unresolvedMedia = new Set<string>();
   const highlighter = await getHighlighter();
 
-  const file = await unified()
-    .use(remarkParse)
-    .use(remarkGfm)
+  const file = await markdownSyntax()
     // 記事に書いた生 HTML はそのまま出す (raw ノードのまま最後まで運ぶ)。
     //
     // **rehype-raw は使わない。** あれは HTML を parse5 で読み直すので、

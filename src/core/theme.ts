@@ -65,6 +65,18 @@ export type PageContext = {
    * `og:url` を出さず、`noindex` を出す。
    */
   readonly canonicalUrl: string | null;
+  /**
+   * このページの JSON-LD（schema.org）。**`<script type="application/ld+json">` の中に
+   * そのまま置ける文字列**（`<` などは core がエスケープ済みなので、テーマはエスケープ
+   * し直さずに出す）。記事は `BlogPosting`、トップは `Blog`、タグは `CollectionPage`。
+   *
+   * 404 とプレビューは null。出すかどうか、`<head>` のどこに置くかはテーマが決める。
+   *
+   * **省略できる形にしてある。** 後から足した項目なので、利用側が `PageContext` を
+   * 手で組んでいる（テストで `theme.notFound({ site, urls, canonicalUrl })` を呼ぶなど）と、
+   * 必須にした途端にコンパイルが通らなくなる。
+   */
+  readonly jsonLd?: string | null;
 };
 
 /**

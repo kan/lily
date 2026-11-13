@@ -3,7 +3,9 @@
  *
  * ここが持つのは「どのデータをどのテーマ関数に渡すか」と、308 の張り方だけ。
  */
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
+import { blogJsonLd, postJsonLd, tagJsonLd } from '../agent/json-ld.ts';
+import { createMarkdownPages } from '../agent/markdown.ts';
 import type { LilyBindings, PageConfig } from '../config.ts';
 import { getCanonicalPath, resolvePath } from '../db/post-paths.ts';
 import {
@@ -18,12 +20,14 @@ import { storedOrRenderedHtml } from '../delivery.ts';
 import { getTagBySlug, getTagsForPost, getTagsForPosts } from '../db/tags.ts';
 import { createPaths } from '../paths.ts';
 import { renderMarkdown } from '../render/index.ts';
+import { absolutizeMediaReferences } from '../render/markdown-media.ts';
 import { resolveMediaUrls } from '../render/placeholder.ts';
 import type { PageContext, Pagination } from '../theme.ts';
 import { hashPreviewToken } from '../tokens.ts';
 import { groupByPost, toPostSummary, toPostView, toTagView } from '../view.ts';
-import { NO_STORE, SHORT_EDGE, LONG_EDGE } from './cache.ts';
+import { NO_STORE, LONG_EDGE } from './cache.ts';
 import { ROUTE } from './fixed.ts';
+import { createPageResponse, requestFormat } from './negotiated.ts';
 import { createNotFound } from './not-found.ts';
 
 type Env = { Bindings: LilyBindings };
@@ -46,45 +50,64 @@ export function publicRoutes(config: PageConfig): Hono<Env> {
   const redirectTo = (path: string, requestUrl: string): string =>
     `${path}${new URL(requestUrl).search}`;
 
-  const html = (body: string): Response =>
-    new Response(body, {
-      headers: { 'Content-Type': 'text/html; charset=UTF-8', 'Cache-Control': SHORT_EDGE },
-    });
-
-  const context = (canonicalUrl: string | null): PageContext => ({
+  const context = (canonicalUrl: string | null, jsonLd: string | null): PageContext => ({
     site: config.site,
     urls,
     canonicalUrl,
+    jsonLd,
   });
 
+  // 404 は `Accept` を自分で読む。**記事・一覧・タグ・404 が HTML と Markdown を
+  // 出し分ける。** 下書きプレビューは HTML だけ（保存直後の見た目を確かめるページなので）。
   const notFound = createNotFound(config);
+  const respond = createPageResponse(urls);
+  const markdown = createMarkdownPages(config.site);
+  // トップの JSON-LD は設定だけで決まるので、1 度だけ組む。
+  const blogLd = blogJsonLd(config.site, urls);
 
   // マウント直下のスラッシュ無し。`/blog` → `/blog/`
   if (mount !== '') {
     app.get(mount, (c) => c.redirect(redirectTo(urls.index(), c.req.url), 308));
   }
 
-  /** 一覧を組む。`page` は 2 ページ目以降だけ URL に出る。 */
-  const indexPage = async (db: D1Database, page: number): Promise<Response> => {
-    const pages = await paginate(page, await countPublishedPosts(db), (n) => urls.index({ page: n }));
-    if (pages === null) return await notFound();
+  /**
+   * 一覧を組む。`page` は 2 ページ目以降だけ URL に出る。
+   *
+   * **Markdown 版はページ送りと記事の URL を絶対で組む**（HTML は相対のまま）。
+   */
+  const indexPage = async (c: Context<Env>, page: number): Promise<Response> => {
+    const db = c.env.DB;
+    const format = requestFormat(c);
+    const absolute = format === 'markdown';
+    const pages = await paginate(page, await countPublishedPosts(db), (n) =>
+      urls.index({ page: n, absolute }),
+    );
+    if (pages === null) return await notFound(c);
 
     const posts = await getPublishedPosts(db, { limit: PER_PAGE, offset: (page - 1) * PER_PAGE });
     const tags = groupByPost(await getTagsForPosts(db, posts.map((p) => p.id)));
-    const views = posts.map((p) => toPostSummary(urls, p, tags.get(p.id) ?? []));
+    const views = posts.map((p) => toPostSummary(urls, p, tags.get(p.id) ?? [], { absolute }));
+    const self = urls.index({ page, absolute: true });
 
-    return html(await theme.index(context(urls.index({ page, absolute: true })), views, pages));
+    const body =
+      format === 'markdown'
+        ? markdown.list(
+            { title: config.site.name, description: config.site.description, url: self, pagination: pages },
+            views,
+          )
+        : await theme.index(context(self, blogLd), views, pages);
+    return respond(format, body, { self });
   };
 
-  app.get(urls.index(), (c) => indexPage(c.env.DB, 1));
+  app.get(urls.index(), (c) => indexPage(c, 1));
 
   // **`/page/1/` は用意しない。** 1 ページ目は `/` なので、両方あると同じ中身が
   // 2 つの URL で出る。来たら canonical へ寄せる。
   app.get(`${mount}/${ROUTE.page}/:page/`, async (c) => {
     const page = pageNumber(c.req.param('page'));
-    if (page === null) return await notFound();
+    if (page === null) return await notFound(c);
     if (page === 1) return c.redirect(redirectTo(urls.index(), c.req.url), 308);
-    return await indexPage(c.env.DB, page);
+    return await indexPage(c, page);
   });
 
   app.get(`${mount}/${ROUTE.page}/:page`, (c) =>
@@ -110,39 +133,44 @@ export function publicRoutes(config: PageConfig): Hono<Env> {
     c.redirect(redirectTo(urls.tag({ slug: c.req.param('slug') }), c.req.url), 308),
   );
 
-  const tagPage = async (db: D1Database, slug: string, page: number): Promise<Response> => {
+  const tagPage = async (c: Context<Env>, slug: string, page: number): Promise<Response> => {
+    const db = c.env.DB;
     const tag = await getTagBySlug(db, slug);
-    if (!tag) return await notFound();
+    if (!tag) return await notFound(c);
 
+    const format = requestFormat(c);
+    const absolute = format === 'markdown';
     const total = await countPublishedPostsByTagSlug(db, slug);
-    const pages = await paginate(page, total, (n) => urls.tag(tag, { page: n }));
-    if (pages === null) return await notFound();
+    const pages = await paginate(page, total, (n) => urls.tag(tag, { page: n, absolute }));
+    if (pages === null) return await notFound(c);
 
     const posts = await getPublishedPostsByTagSlug(db, slug, {
       limit: PER_PAGE,
       offset: (page - 1) * PER_PAGE,
     });
     const tags = groupByPost(await getTagsForPosts(db, posts.map((p) => p.id)));
-    const views = posts.map((p) => toPostSummary(urls, p, tags.get(p.id) ?? []));
+    const views = posts.map((p) => toPostSummary(urls, p, tags.get(p.id) ?? [], { absolute }));
+    const self = urls.tag(tag, { page, absolute: true });
 
-    return html(
-      await theme.tag(
-        context(urls.tag(tag, { page, absolute: true })),
-        toTagView(urls, tag),
-        views,
-        pages,
-      ),
-    );
+    let body: string;
+    if (format === 'markdown') {
+      body = markdown.list({ title: tag.name, url: self, pagination: pages }, views);
+    } else {
+      const tagView = toTagView(urls, tag);
+      const jsonLd = tagJsonLd(config.site, urls, tagView, self);
+      body = await theme.tag(context(self, jsonLd), tagView, views, pages);
+    }
+    return respond(format, body, { self });
   };
 
-  app.get(`${mount}/${ROUTE.tags}/:slug/`, (c) => tagPage(c.env.DB, c.req.param('slug'), 1));
+  app.get(`${mount}/${ROUTE.tags}/:slug/`, (c) => tagPage(c, c.req.param('slug'), 1));
 
   app.get(`${mount}/${ROUTE.tags}/:slug/${ROUTE.page}/:page/`, async (c) => {
     const slug = c.req.param('slug');
     const page = pageNumber(c.req.param('page'));
-    if (page === null) return await notFound();
+    if (page === null) return await notFound(c);
     if (page === 1) return c.redirect(redirectTo(urls.tag({ slug }), c.req.url), 308);
-    return await tagPage(c.env.DB, slug, page);
+    return await tagPage(c, slug, page);
   });
 
   // 下書きプレビュー。**公開ページと同じ renderer を通す**が、毎回 body_md から
@@ -150,7 +178,7 @@ export function publicRoutes(config: PageConfig): Hono<Env> {
   app.get(`${mount}/${ROUTE.preview}/:token`, async (c) => {
     const db = c.env.DB;
     const post = await getPostByPreviewTokenHash(db, await hashPreviewToken(c.req.param('token')));
-    if (!post) return await notFound();
+    if (!post) return await notFound(c);
 
     const canonical = (await getCanonicalPath(db, post.id)) ?? post.public_id;
     // 保存済みの HTML は使わない。保存直後の姿を見るためのページなので、
@@ -162,7 +190,7 @@ export function publicRoutes(config: PageConfig): Hono<Env> {
     const [tags, ogp] = await Promise.all([getTagsForPost(db, post.id), getOgpMedia(db, post.id)]);
     const view = toPostView(urls, post, canonical, tags, html, ogp);
 
-    return c.html(await theme.post(context(null), view), 200, {
+    return c.html(await theme.post(context(null, null), view), 200, {
       'Cache-Control': NO_STORE,
       'X-Robots-Tag': 'noindex',
     });
@@ -177,14 +205,14 @@ export function publicRoutes(config: PageConfig): Hono<Env> {
     // リクエストのパスも保存時と同じ規則で正規化する。ここを別実装にすると、
     // 保存できたのに引けない (あるいはその逆の) パスが生まれる。
     const normalized = normalizePostPath(requested);
-    if (!normalized.ok) return await notFound();
+    if (!normalized.ok) return await notFound(c);
 
     const resolved = await resolvePath(db, normalized.value);
-    if (!resolved) return await notFound();
+    if (!resolved) return await notFound(c);
 
     // 公開判定は 308 より先。後にすると、下書きのパスを当てられたときに
     // リダイレクトの有無で存在が分かってしまう。
-    if (resolved.status !== 'published') return await notFound();
+    if (resolved.status !== 'published') return await notFound(c);
 
     // alias・大小文字違い・末尾スラッシュ無し・連続スラッシュ・エンコードの揺れを
     // まとめて canonical へ寄せる。**比較はリクエストのパスそのもの**で行う。
@@ -196,6 +224,21 @@ export function publicRoutes(config: PageConfig): Hono<Env> {
       return c.redirect(redirectTo(canonicalPath, c.req.url), 308);
     }
 
+    const format = requestFormat(c);
+    const self = urls.post(resolved.canonical_path, { absolute: true });
+
+    // **Markdown は原本（`body_md`）から返す。** HTML から変換しないので、書き手の記法が
+    // そのまま届く。添付の参照だけを絶対 URL に直す（保存してある本文は変えない）。
+    if (format === 'markdown') {
+      const [tags, media] = await Promise.all([
+        getTagsForPost(db, resolved.id),
+        listMediaByPost(db, resolved.id),
+      ]);
+      const body = absolutizeMediaReferences(resolved.body_md, media, urls);
+      const summary = toPostSummary(urls, resolved, tags, { absolute: true });
+      return respond(format, markdown.post(summary, body), { self });
+    }
+
     const stored = await storedOrRenderedHtml(resolved, () => listMediaByPost(db, resolved.id));
     const html = resolveMediaUrls(stored, urls);
     const [tags, ogp] = await Promise.all([
@@ -203,10 +246,9 @@ export function publicRoutes(config: PageConfig): Hono<Env> {
       getOgpMedia(db, resolved.id),
     ]);
     const view = toPostView(urls, resolved, resolved.canonical_path, tags, html, ogp);
+    const jsonLd = postJsonLd(config.site, urls, view, self);
 
-    return c.html(await theme.post(context(urls.post(resolved.canonical_path, { absolute: true })), view), 200, {
-      'Cache-Control': SHORT_EDGE,
-    });
+    return respond(format, await theme.post(context(self, jsonLd), view), { self });
   });
 
   return app;

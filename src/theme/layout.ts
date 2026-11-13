@@ -60,7 +60,7 @@ export async function layout(
   body: HtmlEscapedString | Promise<HtmlEscapedString>,
   text: Text,
 ): Promise<string> {
-  const { site, urls, canonicalUrl } = context;
+  const { site, urls, canonicalUrl, jsonLd } = context;
   const title = pageTitle(site.name, options.page);
   const description = options.description ?? site.description;
   const brand = options.brandIsHeading ? 'h1' : 'p';
@@ -109,6 +109,9 @@ export async function layout(
     <!-- カードの形だけ指定する。**どのアカウントのものかは示さない**
          (lily はサイトの SNS アカウントを知らないし、知る必要もない)。 -->
     <meta name="twitter:card" content="summary_large_image" />
+    <!-- 構造化データ。中身は core が組み、script の中に置ける形にエスケープ済み
+         なので、ここではエスケープし直さない (raw)。 -->
+    ${jsonLd == null ? '' : html`<script type="application/ld+json">${raw(jsonLd)}</script>`}
   </head>
   <body>
     <div class="wrap">

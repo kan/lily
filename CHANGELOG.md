@@ -9,6 +9,26 @@ Versions up to 0.5.2 are listed on the
 
 ## [Unreleased]
 
+### Added
+
+- Public pages now answer AI agents. A request with `Accept: text/markdown` to the
+  index, a tag page or a post gets Markdown at the same URL: a post is its stored
+  Markdown with a frontmatter block and absolute attachment URLs, and a list page is
+  a list of links with `prev` / `next`. The 404 answers in Markdown too, still with
+  status 404. Browsers and `curl` keep getting HTML. See
+  [AI agents](docs/agents.md).
+- These responses carry `Vary: Accept` and a `Link` header pointing to the other
+  form, the sitemap and the RSS feed. The Markdown is never put in a shared cache
+  (`private`), so a browser cannot be served it from the edge.
+- The HTML of the index, tag pages and posts carries JSON-LD (`Blog`,
+  `CollectionPage`, `BlogPosting`). The new optional `site.authorUrl` and
+  `site.sameAs` settings add a URL and other profiles to the author.
+- `PageContext` has a new optional `jsonLd` field: the JSON-LD for the page,
+  already escaped for a `<script>` element, or `null`. The default theme emits
+  it; a custom theme keeps working without it and can add one line to emit it
+  ([Themes](docs/themes.md)). Code that builds a `PageContext` by hand still
+  compiles.
+
 ## [0.5.4] - 2026-11-06
 
 ### Security

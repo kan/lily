@@ -28,6 +28,10 @@ if you want the same properties:
 - Name, description, author, language, time zone, OGP image and tab icon all come from
   `SiteConfig`.
 - It does not know the mount point. URLs are built by `context.urls`.
+- **It emits `context.jsonLd` as is**, inside `<script type="application/ld+json">` in
+  `<head>`, when it is set. Core builds the schema.org data and escapes it for a
+  script element, so a theme must not escape it again; writing the data per theme would let
+  two themes describe the same post differently. It is `null` on the 404 and the preview.
 - **It does not know the filenames of static assets.** What you serve is up to
   `PageConfig.assets`, so `<link rel="icon">` appears only when `SiteConfig.favicon` is set —
   the same shape as `ogImage`, with core involved in neither serving the image nor building

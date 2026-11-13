@@ -14,7 +14,19 @@ export type SiteConfig = {
   /** 読み手向けのサイト名。`<title>` / OGP / フィードに出る。 */
   readonly name: string;
   readonly description: string;
+  /** 書き手の名前。標準テーマのフッターと、JSON-LD の `author` に出る。 */
   readonly author: string;
+  /**
+   * 書き手を表すページの URL（プロフィールや自分のサイト）。JSON-LD の `Person` の `url`。
+   * **無ければ出さない**（名前だけの `Person` になる）。
+   */
+  readonly authorUrl?: string;
+  /**
+   * 書き手の別のアカウントやプロフィール（GitHub・Bluesky など）の URL。JSON-LD の
+   * `Person` の `sameAs`。**無ければ出さない。** lily はサイトの SNS アカウントを
+   * 知らないので、ここに渡されたものだけを出す。
+   */
+  readonly sameAs?: readonly string[];
   /**
    * 配信する中身の言語（BCP 47）。`<html lang>` と Bluesky の告知に出る。
    *
