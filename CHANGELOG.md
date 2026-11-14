@@ -9,6 +9,13 @@ Versions up to 0.5.2 are listed on the
 
 ## [Unreleased]
 
+### Fixed
+
+- The AI Catalog (`<mount>/.well-known/ai-catalog.json`) now gives its entry a `displayName`
+  (the site name), and names the site as its `host`. ARD requires the entry's
+  `displayName`, and without it isitagentready's `ard` check counted the catalog as having
+  no valid entries.
+
 ## [0.7.0] - 2026-11-14
 
 ### Added

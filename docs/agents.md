@@ -128,7 +128,7 @@ guess:
 |---|---|---|
 | `<mount>/.well-known/api-catalog` | `application/linkset+json` ([RFC 9727](https://www.rfc-editor.org/rfc/rfc9727)) | `posts.json`, `search.json` and the MCP server, each with a link to its documentation. `HEAD` answers with `Link: rel="api-catalog"`, as the RFC requires |
 | `<mount>/mcp/server-card` | `application/mcp-server-card+json` ([SEP-2127](https://modelcontextprotocol.io/seps/2127-mcp-server-cards)) | The MCP server's name, description and URL. The name is the host reversed plus the mount (`com.example/blog`; `com.example/lily` at the root; characters the name cannot hold become `_XX` UTF-8 bytes, so `/日記` and `/写真` stay distinct). Tools are not listed — the proposal leaves them to `tools/list` |
-| `<mount>/.well-known/ai-catalog.json` | `application/ai-catalog+json` (same proposal) | Points to the Server Card |
+| `<mount>/.well-known/ai-catalog.json` | `application/ai-catalog+json` (same proposal) | Points to the Server Card. The entry and the `host` carry `displayName` (the site name): the AI Catalog spec suggests leaving it out, but [ARD](https://agenticresourcediscovery.org/spec/) requires it, and isitagentready checks against ARD |
 
 - Every public page's `Link` header points to the API Catalog (`rel="api-catalog"`), so it
   can be found from any page, wherever it lives.

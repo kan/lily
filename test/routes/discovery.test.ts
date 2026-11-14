@@ -150,14 +150,26 @@ describe('MCP Server Card (SEP-2127)', () => {
     expect(res.headers.get('Content-Type')).toBe('application/ai-catalog+json');
     expect(await res.json()).toEqual({
       specVersion: '1.0',
+      host: { displayName: 'マウント付き', identifier: 'example.test' },
       entries: [
         {
           identifier: 'urn:air:example.test:mcp:blog',
+          // ARD が MUST にしている（無いと isitagentready の ard がエントリを 0 件と数える）
+          displayName: 'マウント付き',
           type: 'application/mcp-server-card+json',
           url: `${SITE}${CARD}`,
         },
       ],
     });
+  });
+
+  it('AI Catalog の名前はサイトの設定から取る (root mount は別の名前)', async () => {
+    const catalog = await (await getRoot('/.well-known/ai-catalog.json')).json<{
+      host: { displayName: string; identifier: string };
+      entries: { displayName: string }[];
+    }>();
+    expect(catalog.host).toEqual({ displayName: 'ルート', identifier: 'root.example.test' });
+    expect(catalog.entries[0]!.displayName).toBe('ルート');
   });
 });
 
