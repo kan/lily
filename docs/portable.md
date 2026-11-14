@@ -180,6 +180,20 @@ been applied. **After restoring the dump into a new database, run the last comma
 it too**, or search answers `500` there. D1 Time Travel (point-in-time restore) is not
 affected by any of this.
 
+**If you only need to read the data, you can skip all that.** Since November 2026, D1 can
+export a database with virtual tables in the format of sqlite3's `.dump`
+([changelog](https://developers.cloudflare.com/changelog/post/2026-11-12-d1-export-virtual-tables/)):
+
+```bash
+npx wrangler d1 export DB --remote --compatibility sqlite3_cli_only --output <file>
+```
+
+Nothing is dropped, so posts stay indexed while it runs. **That dump opens in the `sqlite3`
+CLI but cannot be imported back into D1** (Cloudflare says so), and the option works with
+`--remote` only. Use it to inspect or archive the data; to get a dump you can restore into
+D1, use the steps above. It needs a wrangler recent enough to have the flag (4.160.0 has
+it; check `npx wrangler d1 export --help`).
+
 Cron triggers cannot be fired by hand, so check the morning after the first one that the
 archive count went up (`npx wrangler r2 object list <bucket> --remote --prefix archives/`).
 To test the wiring locally, `npx wrangler dev --test-scheduled` and hit `/__scheduled`.
