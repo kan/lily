@@ -5,6 +5,7 @@
  * 付け忘れると、その種類のページだけキャッシュに取り違えられる。
  */
 import type { Context } from 'hono';
+import { apiCatalogLink } from '../agent/discovery.ts';
 import { pageFormat, type PageFormat } from '../agent/negotiate.ts';
 import type { Urls } from '../paths.ts';
 import { MARKDOWN, SHORT_EDGE } from './cache.ts';
@@ -36,13 +37,15 @@ export type PageResponse = (
  *   いない方が「内容交渉していない応答」としてキャッシュに収まる
  * - `Link` ヘッダ（RFC 8288）で、エージェントが HTML を読まずにほかの形と一覧の在りかを
  *   見つけられるようにする。`self` があれば**同じ URL の別の形**を `rel="alternate"` で
- *   示し（URL は変えず、`Accept` で選ぶため）、サイトマップとフィード（RSS）はどの
+ *   示し（URL は変えず、`Accept` で選ぶため）、サイトマップとフィード（RSS）と
+ *   API Catalog（RFC 9727 の `rel="api-catalog"`。検索や MCP の在りか）はどの
  *   ページにも付ける
  */
 export function createPageResponse(urls: Urls): PageResponse {
   const shared = [
     `<${urls.sitemap({ absolute: true })}>; rel="sitemap"; type="application/xml"`,
     `<${urls.feed('rss', { absolute: true })}>; rel="alternate"; type="application/rss+xml"`,
+    apiCatalogLink(urls),
   ];
 
   return (format, body, { self, status = 200 }) => {

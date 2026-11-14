@@ -24,11 +24,23 @@ Versions up to 0.5.2 are listed on the
   [AI agents](docs/agents.md#mcp).
 - lily now depends on `@modelcontextprotocol/server`. The Worker grows by about 90 KiB
   gzipped.
+- **Agents can find the endpoints.** `<mount>/.well-known/api-catalog` (RFC 9727) lists
+  `posts.json`, `search.json` and the MCP server, and every public page links to it with
+  `Link: rel="api-catalog"`. The MCP server has a Server Card at `<mount>/mcp/server-card`,
+  pointed to by `<mount>/.well-known/ai-catalog.json`. With a mount other than `/`, the
+  root `/.well-known/` is yours to redirect. See
+  [AI agents](docs/agents.md#discovery).
+- **Pages register WebMCP tools** (`search_posts` and `get_post`) for agents running in the
+  browser. Core builds the script and the theme places it: a theme of your own has to emit
+  the new `PageContext.webMcp` in a `<script>` to get them. See
+  [AI agents](docs/agents.md#webmcp).
+- `search: false` turns off the search, and `mcp: false` the MCP server. Both are on by
+  default.
 
 ### Changed
 
-- **`search.json` and `mcp` are now reserved as the first segment of a post path.** A post
-  whose path starts with either can no longer be created, and **an existing one stops being
+- **`search.json`, `mcp` and `.well-known` are now reserved as the first segment of a post
+  path**, whether or not search and MCP are turned on. A post whose path starts with one can no longer be created, and **an existing one stops being
   reachable**: its URL answers 404 (or the endpoint itself), while `posts.json`, the feeds and
   the sitemap still list it. Give such a post another path before upgrading; its id still
   reaches it.

@@ -7,7 +7,8 @@ import { Hono, type Context } from 'hono';
 import { blogJsonLd, postJsonLd, tagJsonLd } from '../agent/json-ld.ts';
 import { createMarkdownPages } from '../agent/markdown.ts';
 import { publishedPostMarkdown } from '../agent/post-markdown.ts';
-import type { LilyBindings, PageConfig } from '../config.ts';
+import { webMcpScript } from '../agent/webmcp.ts';
+import { agentFeatures, type LilyBindings, type PageConfig } from '../config.ts';
 import { getCanonicalPath, resolvePublishedPost } from '../db/post-paths.ts';
 import {
   countPublishedPosts,
@@ -25,7 +26,7 @@ import { resolveMediaUrls } from '../render/placeholder.ts';
 import type { PageContext, Pagination } from '../theme.ts';
 import { hashPreviewToken } from '../tokens.ts';
 import { groupByPost, toPostSummary, toPostView, toTagView } from '../view.ts';
-import { NO_STORE, LONG_EDGE } from './cache.ts';
+import { fixedResponse, NO_STORE, LONG_EDGE } from './cache.ts';
 import { ROUTE } from './fixed.ts';
 import { createPageResponse, requestFormat } from './negotiated.ts';
 import { createNotFound } from './not-found.ts';
@@ -39,7 +40,10 @@ export function publicRoutes(config: PageConfig): Hono<Env> {
   const mount = urls.mountPath;
   const { theme } = config;
   // 中身が変わるのはデプロイのときだけなので、ETag は起動時に 1 度だけ組む。
-  const stylesheetETag = `"${hash(theme.stylesheet)}"`;
+  const stylesheet = fixedResponse(theme.stylesheet, {
+    'Content-Type': 'text/css; charset=utf-8',
+    'Cache-Control': LONG_EDGE,
+  });
 
   /**
    * 308 の飛び先。**クエリ文字列を落とさない。**
@@ -51,11 +55,15 @@ export function publicRoutes(config: PageConfig): Hono<Env> {
   const redirectTo = (path: string, requestUrl: string): string =>
     `${path}${new URL(requestUrl).search}`;
 
+  // WebMCP の登録も設定だけで決まる。それ自身の URL を持つページにだけ置く
+  // （プレビューは下書きを見るためのページなので、道具を出さない）。
+  const webMcp = webMcpScript(urls, agentFeatures(config));
   const context = (canonicalUrl: string | null, jsonLd: string | null): PageContext => ({
     site: config.site,
     urls,
     canonicalUrl,
     jsonLd,
+    webMcp: canonicalUrl === null ? null : webMcp,
   });
 
   // 404 は `Accept` を自分で読む。**記事・一覧・タグ・404 が HTML と Markdown を
@@ -115,20 +123,7 @@ export function publicRoutes(config: PageConfig): Hono<Env> {
     c.redirect(redirectTo(`${mount}/${ROUTE.page}/${c.req.param('page')}/`, c.req.url), 308),
   );
 
-  app.get(urls.stylesheet(), (c) => {
-    // 中身が変わるのはデプロイのときだけ。返すだけで見ないと ETag は飾りになる。
-    if (c.req.header('If-None-Match') === stylesheetETag) {
-      return new Response(null, {
-        status: 304,
-        headers: { 'Cache-Control': LONG_EDGE, ETag: stylesheetETag },
-      });
-    }
-    return c.body(theme.stylesheet, 200, {
-      'Content-Type': 'text/css; charset=utf-8',
-      'Cache-Control': LONG_EDGE,
-      ETag: stylesheetETag,
-    });
-  });
+  app.get(urls.stylesheet(), (c) => stylesheet(c.req.header('If-None-Match')));
 
   app.get(`${mount}/${ROUTE.tags}/:slug`, (c) =>
     c.redirect(redirectTo(urls.tag({ slug: c.req.param('slug') }), c.req.url), 308),
@@ -272,14 +267,4 @@ async function paginate(
     prevUrl: page > 1 ? urlFor(page - 1) : null,
     nextUrl: page < totalPages ? urlFor(page + 1) : null,
   };
-}
-
-/** ETag 用の軽いハッシュ。衝突しても 304 が減るだけなので暗号強度は要らない。 */
-function hash(input: string): string {
-  let h = 2166136261;
-  for (let i = 0; i < input.length; i++) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return (h >>> 0).toString(36);
 }

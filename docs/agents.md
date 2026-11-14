@@ -7,6 +7,16 @@ lily serves it the post itself, at the same URL, and tells it where everything e
 Nothing here needs configuring; `site.authorUrl` and `site.sameAs` only add to the JSON-LD
 ([Configuration](./configuration.md)).
 
+**Search and the MCP server can be turned off**, and both are on by default:
+
+| Setting | What goes away |
+|---|---|
+| `search: false` | `search.json`, the `search_posts` tool (MCP and WebMCP), and their entries in the API Catalog |
+| `mcp: false` | `<mount>/mcp`, its Server Card, the AI Catalog, and the MCP entry in the API Catalog |
+
+**The paths stay reserved either way**, so turning a feature on later never takes a URL from
+an existing post.
+
 ## Markdown at the same URL
 
 Send `Accept: text/markdown` to the index, a page of it, a tag page or a post, and the
@@ -103,6 +113,65 @@ pages already show.
 
 To connect a client, give it `https://<your site><mount>/mcp`.
 
+## `posts.json`
+
+`GET <mount>/posts.json?limit=<n>` lists the newest published posts in the shape search
+uses (`limit` defaults to 5, capped at 20). It was made for another site to show your
+latest posts, and it is listed in the API Catalog.
+
+## Discovery
+
+lily publishes where its machine-readable endpoints are, so an agent does not have to
+guess:
+
+| Path | Format | What |
+|---|---|---|
+| `<mount>/.well-known/api-catalog` | `application/linkset+json` ([RFC 9727](https://www.rfc-editor.org/rfc/rfc9727)) | `posts.json`, `search.json` and the MCP server, each with a link to its documentation. `HEAD` answers with `Link: rel="api-catalog"`, as the RFC requires |
+| `<mount>/mcp/server-card` | `application/mcp-server-card+json` ([SEP-2127](https://modelcontextprotocol.io/seps/2127-mcp-server-cards)) | The MCP server's name, description and URL. The name is the host reversed plus the mount (`com.example/blog`; `com.example/lily` at the root; characters the name cannot hold become `_XX` UTF-8 bytes, so `/日記` and `/写真` stay distinct). Tools are not listed — the proposal leaves them to `tools/list` |
+| `<mount>/.well-known/ai-catalog.json` | `application/ai-catalog+json` (same proposal) | Points to the Server Card |
+
+- Every public page's `Link` header points to the API Catalog (`rel="api-catalog"`), so it
+  can be found from any page, wherever it lives.
+- All three carry `Access-Control-Allow-Origin: *`, `Cache-Control: public, max-age=3600`
+  and an `ETag`. They are built from the configuration alone and change only on deploy.
+- The Server Card and the AI Catalog are drafts of the MCP project, not part of the
+  2026-07-28 specification. lily follows them as they stand and will change with them.
+
+**`/.well-known/` belongs at the root of the site.** With `mountPath: '/'` these are the
+real well-known documents. With a mount like `/blog`, they are at
+`/blog/.well-known/…`, and the root ones are yours to serve: redirect
+`/.well-known/api-catalog` and `/.well-known/ai-catalog.json` to the mounted ones (RFC 9727
+recommends a redirect for this), or answer them from whatever serves your root. lily does
+not reach outside its mount.
+
+## WebMCP
+
+Every page that has its own URL (index, tag pages, posts) carries a small script that
+registers two tools through [WebMCP](https://webmcp.org/) (`document.modelContext`), so an
+agent running in the browser can use them on the page it is looking at:
+
+| Tool | What it does |
+|---|---|
+| `search_posts` | Calls `search.json` and returns its JSON. Not registered with `search: false` |
+| `get_post` | Fetches the post's URL with `Accept: text/markdown` and returns the Markdown. Only URLs on this site under the mount are fetched, and only a post is returned — the index, a tag page or a JSON endpoint answers "No published post", as the MCP tool does |
+
+- The names, descriptions and arguments are those of the MCP tools. No new endpoint is
+  involved: the script calls what the page could already reach.
+- **A failure is thrown, not returned**: a refused search (with the `message` from
+  `search.json`), "No published post", or a failed request. That is how WebMCP tells the
+  agent a call failed, as `isError` does in MCP.
+- **In a browser without WebMCP the script does nothing**, and a refused registration
+  (the `tools` Permissions Policy turned off) does not break the page.
+- Requests go to the page's own origin, so a page opened on a preview host does not call
+  production. `get_post` given a URL on `site.url` (as search results carry) fetches it from
+  the page's origin; the search results themselves are returned unchanged.
+- WebMCP is a W3C Community Group draft, behind an origin trial in Chrome and Edge. Like
+  the Server Card, it may change.
+
+Core builds the script; the theme places it (`PageContext.webMcp`, the same split as the
+JSON-LD below). The standard theme puts it in `<head>`. **A theme of your own has to place it
+too**, or the tools do not exist on its pages ([Themes](./themes.md)).
+
 ## Caching
 
 Both forms carry `Vary: Accept`. **Only the HTML may sit in a shared cache**
@@ -128,6 +197,7 @@ other forms without parsing HTML:
 | `rel="alternate"; type="text/markdown"` (on HTML) / `type="text/html"` (on Markdown) | The same URL in the other form. Not sent on the 404, which has no URL of its own |
 | `rel="sitemap"` | The sitemap index |
 | `rel="alternate"; type="application/rss+xml"` | The RSS feed |
+| `rel="api-catalog"` | The [API Catalog](#discovery): search, `posts.json` and the MCP server |
 
 ## JSON-LD
 

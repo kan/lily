@@ -6,7 +6,7 @@
  * 各所に散らさないぶん、root mount の検証はユニットテストで済む。
  */
 import { err, ok, type Result } from './result.ts';
-import { FIXED_ROUTES, ROUTE } from './routes/fixed.ts';
+import { FIXED_ROUTES, MCP_SERVER_CARD, ROUTE, WELL_KNOWN } from './routes/fixed.ts';
 
 /** パス全体の長さ上限。export 先のファイルシステムに書ける範囲に収める。 */
 const MAX_PATH_LENGTH = 200;
@@ -212,6 +212,10 @@ export interface Urls {
   search(options?: UrlOptions): string;
   /** MCP サーバの入口（Streamable HTTP）。 */
   mcp(options?: UrlOptions): string;
+  /** MCP サーバの Server Card（`<mcp>/server-card`）。 */
+  mcpServerCard(options?: UrlOptions): string;
+  /** `<mount>/.well-known/` の下の文書（`WELL_KNOWN` の 1 つ）。 */
+  wellKnown(name: keyof typeof WELL_KNOWN, options?: UrlOptions): string;
   sitemap(options?: UrlOptions): string;
   /** サイトマップの中身。index から指す 1 本。 */
   sitemapUrls(options?: UrlOptions): string;
@@ -305,6 +309,8 @@ function createUrls(config: PathsConfig): Urls {
     postsJson: (o) => build(`/${ROUTE.postsJson}`, o),
     search: (o) => build(`/${ROUTE.search}`, o),
     mcp: (o) => build(`/${ROUTE.mcp}`, o),
+    mcpServerCard: (o) => build(`/${ROUTE.mcp}/${MCP_SERVER_CARD}`, o),
+    wellKnown: (name, o) => build(`/${ROUTE.wellKnown}/${WELL_KNOWN[name]}`, o),
     sitemap: (o) => build(`/${ROUTE.sitemap}`, o),
     sitemapUrls: (o) => build(`/${ROUTE.sitemapUrls}`, o),
     stylesheet: (o) => build(`/${ROUTE.styles}`, o),

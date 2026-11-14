@@ -1,15 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, resetDb } from '../db/helpers.ts';
-import { getWith, MOUNT, seedPost, SITE } from './helpers.ts';
+import { getWith, MOUNT, readRpc as rpc, type RpcResponse, seedPost, SITE } from './helpers.ts';
 
 beforeEach(resetDb);
 
 const LEGACY = '2025-11-25';
 const MODERN = '2026-07-28';
-
-/** JSON-RPC の応答。テストでは中身の形を都度書かずに読む。 */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- test/routes/helpers.ts の JsonBody と同じ理由
-type RpcResponse = { result?: any; error?: { code: number; message: string } };
 
 async function post(body: unknown, headers: Record<string, string> = {}): Promise<Response> {
   return await getWith(`${MOUNT}/mcp`, {
@@ -23,17 +19,6 @@ async function post(body: unknown, headers: Record<string, string> = {}): Promis
   });
 }
 
-/**
- * 応答の JSON-RPC を読む。**2025 年の版は SSE、2026 年の版は JSON で返る**（どちらも
- * 仕様が許す形で、クライアントは両方を読める）。SSE なら最初の `data:` 行を読む。
- */
-async function rpc(res: Response): Promise<RpcResponse> {
-  const text = await res.text();
-  if (!res.headers.get('Content-Type')?.startsWith('text/event-stream')) return JSON.parse(text) as RpcResponse;
-  const data = text.split('\n').find((line) => line.startsWith('data: '));
-  if (data === undefined) throw new Error(`SSE に data が無い: ${text}`);
-  return JSON.parse(data.slice('data: '.length)) as RpcResponse;
-}
 
 /** 2025 年の版。握手（initialize）は stateless なので、要求ごとに独立して答えが返る。 */
 async function legacy(method: string, params: Record<string, unknown> = {}): Promise<RpcResponse> {

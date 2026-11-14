@@ -11,6 +11,7 @@
 import type { SiteConfig } from '../config.ts';
 import type { Urls } from '../paths.ts';
 import type { PostView, TagView } from '../theme.ts';
+import { scriptJson } from './script-json.ts';
 
 type JsonLd = { readonly [key: string]: unknown };
 
@@ -18,7 +19,7 @@ const CONTEXT = 'https://schema.org';
 
 /** 記事。`url` は canonical の絶対 URL。 */
 export function postJsonLd(site: SiteConfig, urls: Urls, post: PostView, url: string): string {
-  return serialize({
+  return scriptJson({
     '@context': CONTEXT,
     '@type': 'BlogPosting',
     headline: post.title,
@@ -37,7 +38,7 @@ export function postJsonLd(site: SiteConfig, urls: Urls, post: PostView, url: st
 
 /** トップ（とそのページ送り）。ブログそのもの。 */
 export function blogJsonLd(site: SiteConfig, urls: Urls): string {
-  return serialize({
+  return scriptJson({
     '@context': CONTEXT,
     ...blog(site, urls),
     description: site.description,
@@ -48,7 +49,7 @@ export function blogJsonLd(site: SiteConfig, urls: Urls): string {
 
 /** タグの一覧。ブログの中の 1 つの集まり。`url` はそのページの絶対 URL。 */
 export function tagJsonLd(site: SiteConfig, urls: Urls, tag: TagView, url: string): string {
-  return serialize({
+  return scriptJson({
     '@context': CONTEXT,
     '@type': 'CollectionPage',
     name: tag.name,
@@ -74,23 +75,3 @@ function person(site: SiteConfig): JsonLd | undefined {
   };
 }
 
-/**
- * エスケープする字。`<` `>` `&` に加えて、行区切り（U+2028）と段落区切り（U+2029）。
- * 後の 2 つは JSON では生のまま書けるが、古い JavaScript の文字列リテラルでは改行として
- * 扱われる。**ソースに生の字を置かない**（編集の道具が改行に変えてしまう）ので、
- * 文字コードから組む。
- */
-const UNSAFE = new RegExp(`[<>&${String.fromCharCode(0x2028, 0x2029)}]`, 'g');
-
-/**
- * `<script>` の中に置ける JSON。記事の題に `</script>` と書かれていても、そこで script が
- * 閉じない。JSON としての値は変わらない（エスケープした字は、JSON を読む側が元の字に
- * 戻す）。`undefined` の
- * 項目は `JSON.stringify` が落とす。
- */
-function serialize(value: JsonLd): string {
-  return JSON.stringify(value).replace(
-    UNSAFE,
-    (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`,
-  );
-}
