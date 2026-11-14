@@ -355,6 +355,9 @@ AI エージェントが記事を探す口（issue #65）。認証の無い入�
 - **代償: `wrangler d1 export` が使えなくなる。** D1 は仮想テーブルを含む DB の export
   を拒む。回避の手順（トリガと表を落として export し、migration を当て直す）は
   `docs/portable.md`。控えの本線は R2 の portable export なので、そちらは影響を受けない
+  - 2026-11-12 から、D1 は仮想テーブルを含む DB を `--compatibility sqlite3_cli_only`
+    （`--remote` だけ）で export できる。ただしその出力は sqlite3 の CLI 向けで、D1 には
+    戻せない。読むだけならこれで足り、D1 へ戻せるダンプは今の回避の手順で取る
 - レート制限は lily では持たない（Cloudflare のルールで掛けてもらう）。`s-maxage=60`
   で同じ問い合わせの繰り返しだけはエッジが吸収する
 

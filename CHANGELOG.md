@@ -9,6 +9,15 @@ Versions up to 0.5.2 are listed on the
 
 ## [Unreleased]
 
+### Changed
+
+- **A D1 database with the search index can be exported again, for reading.**
+  `wrangler d1 export --remote --compatibility sqlite3_cli_only` (new in D1) writes a dump
+  that opens in the `sqlite3` CLI, search index included, without dropping anything. It
+  cannot be imported back into D1, so the steps in
+  [Portable and backups](docs/portable.md#exporting-d1-with-the-search-index) are still the
+  way to a dump you can restore.
+
 ## [0.7.1] - 2026-11-14
 
 ### Fixed

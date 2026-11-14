@@ -83,8 +83,9 @@ no authentication and only reads: drafts are never in the index it searches.
 
 The index is a D1 FTS5 table (`posts_fts`, trigram tokenizer) that triggers keep in step
 with `posts`. Words shorter than three characters cannot use a trigram index and are
-matched by scanning the indexed posts instead. **The table stops `wrangler d1 export` from
-working** — see [Portable and backups](./portable.md#exporting-d1-with-the-search-index).
+matched by scanning the indexed posts instead. **The table stops a plain `wrangler d1 export`
+from working**; a dump for the `sqlite3` CLI still works, and one you can restore into D1
+takes a few extra steps — see [Portable and backups](./portable.md#exporting-d1-with-the-search-index).
 
 ## MCP
 
