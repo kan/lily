@@ -9,6 +9,8 @@ Versions up to 0.5.2 are listed on the
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-14
+
 ### Fixed
 
 - The AI Catalog (`<mount>/.well-known/ai-catalog.json`) now gives its entry a `displayName`
@@ -108,6 +110,7 @@ Versions up to 0.5.2 are listed on the
   tags the release and publishes it to npm. The GitHub release notes are now
   this file's section for the version instead of a list of commits.
 
+[0.7.1]: https://github.com/kan/lily/releases/tag/v0.7.1
 [0.7.0]: https://github.com/kan/lily/releases/tag/v0.7.0
 [0.6.0]: https://github.com/kan/lily/releases/tag/v0.6.0
 [0.5.4]: https://github.com/kan/lily/releases/tag/v0.5.4
