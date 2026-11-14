@@ -438,7 +438,10 @@ function needsQuote(value: string): boolean {
   // こちらは本文として読むので、引用しないと道具によって値が変わってしまう。
   if (value.startsWith('#') || /\s#/.test(value)) return true;
   if (/^(true|false|null|~|yes|no|on|off)$/i.test(value)) return true;
-  if (/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(value)) return true;
+  // `\d+\.?\d*` と書くと、点の無い数字列を 2 つの `\d` で分け方が何通りもでき、
+  // 末尾で外れる長い数字列で多項式時間になる (CodeQL js/polynomial-redos)。
+  // 点の後ろをまとめて省略可能にして、分け方を 1 通りにする (読める形は同じ)。
+  if (/^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test(value)) return true;
   if (/^0[xob][0-9a-fA-F_]+$/i.test(value)) return true;
   return false;
 }
