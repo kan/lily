@@ -198,6 +198,79 @@ describe('制約違反の判定', () => {
   });
 });
 
+describe('posts_fts (全文検索の索引)', () => {
+  // 索引の同期はトリガが持つ。query layer 越しに見ると「検索に出ない」の理由が
+  // 索引なのか検索の条件なのか区別できないので、索引の中身を生 SQL で見る。
+  async function indexed(): Promise<{ rowid: number; title: string; description: string }[]> {
+    const { results } = await db
+      .prepare('SELECT rowid, title, description FROM posts_fts ORDER BY rowid')
+      .all<{ rowid: number; title: string; description: string }>();
+    return results;
+  }
+
+  const published = { status: 'published', published_at: '2026-08-27T00:00:00.000Z' };
+
+  it('公開記事だけが入る (下書きは入らない)', async () => {
+    const id = await insertPost('pub');
+    await db.prepare('UPDATE posts SET status = ?1, published_at = ?2 WHERE id = ?3')
+      .bind(published.status, published.published_at, id).run();
+    await insertPostRaw({ public_id: 'draft', title: '下書き' });
+
+    expect(await indexed()).toEqual([{ rowid: id, title: 'タイトル', description: '' }]);
+  });
+
+  it('INSERT の時点で公開なら入る', async () => {
+    await insertPostRaw({ ...published, public_id: 'p', description: '説明' });
+    expect((await indexed()).map((r) => r.description)).toEqual(['説明']);
+  });
+
+  it('題・説明・本文を直すと索引も変わる', async () => {
+    await insertPostRaw({ ...published, public_id: 'p' });
+    await db.prepare("UPDATE posts SET title = '新しい題' WHERE public_id = 'p'").run();
+    expect((await indexed()).map((r) => r.title)).toEqual(['新しい題']);
+  });
+
+  it('値の変わらない UPDATE では索引を作り直さない', async () => {
+    // 管理画面の保存は題・説明・本文をそろえて送るので、`UPDATE OF` だけだと
+    // タグだけ直した保存でも本文の索引を書き直す。作り直したかどうかを見るため、
+    // 索引の行を先に書き換えておき、それが元に戻らないことを確かめる。
+    await insertPostRaw({ ...published, public_id: 'p' });
+    await db.prepare("UPDATE posts_fts SET title = '目印'").run();
+    await db
+      .prepare("UPDATE posts SET title = title, description = description, body_md = body_md, status = status WHERE public_id = 'p'")
+      .run();
+    expect((await indexed()).map((r) => r.title)).toEqual(['目印']);
+  });
+
+  it('取り下げると消え、再公開すると戻る', async () => {
+    await insertPostRaw({ ...published, public_id: 'p' });
+    await db.prepare("UPDATE posts SET status = 'draft' WHERE public_id = 'p'").run();
+    expect(await indexed()).toEqual([]);
+    await db.prepare("UPDATE posts SET status = 'published' WHERE public_id = 'p'").run();
+    expect(await indexed()).toHaveLength(1);
+  });
+
+  it('記事を消すと消える', async () => {
+    await insertPostRaw({ ...published, public_id: 'p' });
+    await db.prepare("DELETE FROM posts WHERE public_id = 'p'").run();
+    expect(await indexed()).toEqual([]);
+  });
+
+  it('下書きの本文を直しても入らない', async () => {
+    await insertPostRaw({ public_id: 'd' });
+    await db.prepare("UPDATE posts SET body_md = '新しい本文' WHERE public_id = 'd'").run();
+    expect(await indexed()).toEqual([]);
+  });
+
+  it('trigram で、区切りの無い日本語の途中の語に当たる', async () => {
+    await insertPostRaw({ ...published, public_id: 'p', body_md: '今日は全文検索の話をする' });
+    const row = await db
+      .prepare("SELECT count(*) AS n FROM posts_fts WHERE posts_fts MATCH '\"全文検索\"'")
+      .first<{ n: number }>();
+    expect(row?.n).toBe(1);
+  });
+});
+
 describe('Row 型と実テーブル', () => {
   // 列リストと Row 型のずれは型が止める。実テーブルとのずれは `.first<Row>()` が
   // ただのキャストなので、ここで実 D1 と突き合わせるしかない。

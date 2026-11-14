@@ -16,6 +16,13 @@ import { toFeedHtml } from '../feed/html.ts';
 import { createPaths, type Urls } from '../paths.ts';
 import type { RenderMedia } from '../render/index.ts';
 import { resolveMediaUrls } from '../render/placeholder.ts';
+import {
+  searchPosts,
+  SEARCH_OFFSET_MAX,
+  SEARCH_QUERY_MAX,
+  SEARCH_TERMS_MAX,
+  type SearchQueryError,
+} from '../search.ts';
 import { buildSitemap, buildSitemapIndex } from '../sitemap.ts';
 import { postDescription } from '../summary.ts';
 import { groupByPost } from '../view.ts';
@@ -32,6 +39,14 @@ const FEED_LIMIT = 50;
 /** `posts.json` の既定と上限。本体サイトの `/api/blog` と同じ考え方。 */
 const POSTS_JSON_DEFAULT = 5;
 const POSTS_JSON_MAX = 20;
+
+/** 400 で返す説明。**機械が読む `error` と、人が読む `message` を分ける。** */
+const SEARCH_ERROR_MESSAGE: Record<SearchQueryError, string> = {
+  empty: 'Give the words to search for in ?q=.',
+  'too-long': `?q= is limited to ${SEARCH_QUERY_MAX} characters.`,
+  'too-many-terms': `?q= is limited to ${SEARCH_TERMS_MAX} words.`,
+  'offset-too-large': `?offset= is limited to ${SEARCH_OFFSET_MAX}.`,
+};
 
 export function feedRoutes(config: PageConfig): Hono<Env> {
   const app = new Hono<Env>();
@@ -85,21 +100,48 @@ export function feedRoutes(config: PageConfig): Hono<Env> {
     const db = c.env.DB;
     const limit = clampLimit(c.req.query('limit'));
     const posts = await getPublishedPosts(db, { limit });
-    const tags = groupByPost(await getTagsForPosts(db, posts.map((post) => post.id)));
 
     return Response.json(
-      {
-        posts: posts.map((post) => ({
-          id: post.public_id,
-          title: post.title,
-          // canonical の絶対 URL。読む側が組み立て直さずに済む。
-          url: urls.post(post.canonical_path, { absolute: true }),
-          // 公開記事なので published_at は必ずある (DB の CHECK)。
-          published_at: post.published_at as string,
-          description: postDescription(post),
-          tags: (tags.get(post.id) ?? []).map((tag) => tag.name),
-        })),
-      },
+      { posts: await postSummaries(db, urls, posts) },
+      { headers: { 'Cache-Control': SHORT_EDGE } },
+    );
+  });
+
+  /**
+   * 公開記事の全文検索。**認証不要・読み取りだけ**（issue #65）。
+   *
+   * 1 件の形は `posts.json` と同じ。本文は返さない。記事の `url` を
+   * `Accept: text/markdown` で取れば Markdown 版が返る（`routes/negotiated.ts`）。
+   *
+   * 続きがあるときだけ `next` に次のページの絶対 URL を入れる。上限と続きの判定は
+   * `core/search.ts` が持つ（MCP と同じ規則にするため）。
+   */
+  app.get(urls.search(), async (c) => {
+    const db = c.env.DB;
+    const result = await searchPosts(db, {
+      q: c.req.query('q'),
+      limit: Number(c.req.query('limit')),
+      offset: Number(c.req.query('offset')),
+    });
+    if (!result.ok) {
+      return Response.json(
+        { error: result.error, message: SEARCH_ERROR_MESSAGE[result.error] },
+        { status: 400, headers: { 'Cache-Control': SHORT_EDGE } },
+      );
+    }
+
+    const { query, posts, limit, nextOffset } = result.value;
+    let next: string | null = null;
+    if (nextOffset !== null) {
+      const url = new URL(urls.search({ absolute: true }));
+      url.searchParams.set('q', query);
+      url.searchParams.set('limit', String(limit));
+      url.searchParams.set('offset', String(nextOffset));
+      next = url.href;
+    }
+
+    return Response.json(
+      { query, posts: await postSummaries(db, urls, posts), next },
       { headers: { 'Cache-Control': SHORT_EDGE } },
     );
   });
@@ -123,6 +165,37 @@ function clampLimit(raw: string | undefined): number {
   if (!Number.isInteger(value) || value < 1) return POSTS_JSON_DEFAULT;
   return Math.min(value, POSTS_JSON_MAX);
 }
+
+/**
+ * `posts.json` と検索が返す 1 件の形。**2 つの口で同じ形にする**ので 1 箇所に置く。
+ * タグはまとめて 1 回で引く。
+ */
+async function postSummaries(
+  db: D1Database,
+  urls: Urls,
+  posts: readonly PostWithPathRow[],
+): Promise<PostSummary[]> {
+  const tags = groupByPost(await getTagsForPosts(db, posts.map((post) => post.id)));
+  return posts.map((post) => ({
+    id: post.public_id,
+    title: post.title,
+    // canonical の絶対 URL。読む側が組み立て直さずに済む。
+    url: urls.post(post.canonical_path, { absolute: true }),
+    // 公開記事なので published_at は必ずある (DB の CHECK)。
+    published_at: post.published_at as string,
+    description: postDescription(post),
+    tags: (tags.get(post.id) ?? []).map((tag) => tag.name),
+  }));
+}
+
+type PostSummary = {
+  id: string;
+  title: string;
+  url: string;
+  published_at: string;
+  description: string | null;
+  tags: string[];
+};
 
 /**
  * フィードに載せる記事。

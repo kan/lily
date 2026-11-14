@@ -30,6 +30,52 @@ Markdown is chosen only when the request ranks `text/markdown` **above** `text/h
 wildcards included. A browser, `curl` and a plain `fetch` all get HTML; a tie goes to HTML;
 nothing is ever answered with `406`. Draft previews are HTML only.
 
+## Search
+
+`GET <mount>/search.json?q=<words>` searches the published posts and answers JSON. It needs
+no authentication and only reads: drafts are never in the index it searches.
+
+```json
+{
+  "query": "full text",
+  "posts": [
+    {
+      "id": "…",
+      "title": "…",
+      "url": "https://example.com/blog/my-post/",
+      "published_at": "2026-11-14T00:00:00.000Z",
+      "description": "…",
+      "tags": ["dev"]
+    }
+  ],
+  "next": "https://example.com/blog/search.json?q=full+text&limit=10&offset=10"
+}
+```
+
+- **A post matches when it contains every word**, in its title, description or body.
+  Words are separated by spaces (a full-width space counts). Matching is by substring, so a
+  word in the middle of a Japanese sentence is found; ASCII letters match regardless of case.
+- **Newest first**, the same order as `posts.json` — not ranked by relevance. Each entry has
+  the shape `posts.json` uses. The body is not included: fetch the post's `url` with
+  `Accept: text/markdown`.
+- `limit` defaults to 10 and is capped at 20. `next` is the next page as an absolute URL, or
+  `null` when there is none. **`offset` goes up to 1000**: `next` never points past it, and a
+  larger `offset` is refused rather than clamped, so a client counting pages itself is not
+  handed the same page again.
+- **`q` is limited to 100 characters and 5 words.** An empty, too long or too wordy `q`, or
+  an `offset` over 1000, answers `400` with
+  `{ "error": "empty" | "too-long" | "too-many-terms" | "offset-too-large", "message": … }`.
+  Quotes, `*`, `AND` and the like are searched as text, not read as query syntax. The words
+  are not Unicode-normalized: they are matched against the text as it was saved.
+- Responses carry `s-maxage=60`, like `posts.json`. Each query is a different URL, so the
+  edge absorbs repeats of the same query only. **lily does not rate-limit the endpoint.** If
+  you need to, put a Cloudflare rate limiting rule on the path.
+
+The index is a D1 FTS5 table (`posts_fts`, trigram tokenizer) that triggers keep in step
+with `posts`. Words shorter than three characters cannot use a trigram index and are
+matched by scanning the indexed posts instead. **The table stops `wrangler d1 export` from
+working** — see [Portable and backups](./portable.md#exporting-d1-with-the-search-index).
+
 ## Caching
 
 Both forms carry `Vary: Accept`. **Only the HTML may sit in a shared cache**

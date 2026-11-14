@@ -154,9 +154,31 @@ back:
 npx wrangler r2 object get my-blog-backup/archives/lily-<stamp>.zip \
   --remote --file /tmp/restore.zip
 
-# The operational D1 dump (includes bluesky_uri and created_at)
+# The operational D1 dump (includes bluesky_uri and created_at).
+# **This fails as it stands** — see the next section.
 npx wrangler d1 export DB --remote --output <file>
 ```
+
+### Exporting D1 with the search index
+
+**D1 refuses to export a database that holds a virtual table**, and the search index
+(`posts_fts`, an FTS5 table — [AI agents](./agents.md#search)) is one. Cloudflare's
+documented workaround is to drop the virtual table, export, and create it again. The
+triggers that keep the index in step write into it, so drop them first; **while they are
+gone, writes to posts are not indexed**, and recreating the index from the migration
+rebuilds it from the posts as they are then.
+
+```bash
+npx wrangler d1 execute DB --remote --command "DROP TRIGGER posts_fts_insert; DROP TRIGGER posts_fts_update; DROP TRIGGER posts_fts_delete; DROP TABLE posts_fts;"
+npx wrangler d1 export DB --remote --output <file>
+# Recreates the table and the triggers, and indexes every published post again
+npx wrangler d1 execute DB --remote --file node_modules/@kanf/lily/migrations/0004_posts_fts.sql
+```
+
+The dump then holds no search index, but its `d1_migrations` table says the migration has
+been applied. **After restoring the dump into a new database, run the last command against
+it too**, or search answers `500` there. D1 Time Travel (point-in-time restore) is not
+affected by any of this.
 
 Cron triggers cannot be fired by hand, so check the morning after the first one that the
 archive count went up (`npx wrangler r2 object list <bucket> --remote --prefix archives/`).
