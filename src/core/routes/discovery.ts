@@ -53,7 +53,7 @@ export function discoveryRoutes(config: PageConfig): Hono<Env> {
   });
   if (features.mcp) {
     serve(urls.mcpServerCard(), mcpServerCard(config.site, urls), { 'Content-Type': SERVER_CARD_TYPE });
-    serve(urls.wellKnown('aiCatalog'), aiCatalog(urls), { 'Content-Type': AI_CATALOG_TYPE });
+    serve(urls.wellKnown('aiCatalog'), aiCatalog(config.site, urls), { 'Content-Type': AI_CATALOG_TYPE });
   }
   return app;
 }

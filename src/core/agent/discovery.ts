@@ -95,14 +95,28 @@ export function mcpServerCard(site: SiteConfig, urls: Urls): string {
   });
 }
 
-/** AI Catalog。Server Card を 1 つ指す。 */
-export function aiCatalog(urls: Urls): string {
+/**
+ * AI Catalog。Server Card を 1 つ指す。
+ *
+ * **エントリに `displayName` を置く。** AI Catalog の仕様は「参照先が自分の名前を持つなら
+ * 付けない」ことを勧める（SHOULD）が、ARD（Agentic Resource Discovery）はエントリの
+ * `displayName` を MUST にしていて、isitagentready の `ard` の検査はこちらで見る
+ * （無いとエントリが 0 件扱いになる。issue #71）。禁止ではないので ARD に合わせる。
+ * 値は Server Card の `title` と同じサイト名。
+ *
+ * `host` は任意。置くなら `displayName` が MUST（AI Catalog）。サイトの名前とホスト名を
+ * 置いて、カタログを出しているのが誰かを示す。
+ */
+export function aiCatalog(site: SiteConfig, urls: Urls): string {
   const { host, name } = serverCardName(urls);
+  const displayName = clip(site.name, CARD_TEXT_MAX);
   return JSON.stringify({
     specVersion: '1.0',
+    host: { displayName, identifier: host },
     entries: [
       {
         identifier: `urn:air:${host}:mcp:${name}`,
+        displayName,
         type: SERVER_CARD_TYPE,
         url: urls.mcpServerCard({ absolute: true }),
       },

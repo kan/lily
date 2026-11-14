@@ -411,7 +411,9 @@ fushihara.net に入れてから確かめる。
   見つかる
 - **Server Card は `<mount>/mcp/server-card`。** 提案（SEP-2127）が `<MCP の URL>/server-card`
   に決め、`/.well-known/mcp/…` は退けている。`.well-known` に置くのは、ドメイン単位の索引
-  （AI Catalog）だけ。名前は逆順のホスト + mount（root なら `lily`）。同じホストに 2 つ
+  （AI Catalog）だけ。**AI Catalog のエントリには `displayName` を置く**（issue #71）。AI Catalog
+  の仕様は付けないことを勧めるが、ARD が MUST にしていて、isitagentready の `ard` は ARD で
+  見る。名前は逆順のホスト + mount（root なら `lily`）。同じホストに 2 つ
   置いても名前がぶつからないように
 - 3 本とも CORS を `*` で開け、`public, max-age=3600` と ETag を付ける。Server Card は
   提案の MUST / SHOULD。ほかの 2 本も公開ページから読めるもの以上を含まない。中身は
