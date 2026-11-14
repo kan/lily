@@ -26,8 +26,25 @@ function evaluate(script: string, document: unknown, location: unknown, fetch: u
 }
 
 /** ページの HTML から WebMCP の script を取り出す。無ければ null。 */
-function scriptOf(html: string): string | null {
-  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]!);
+async function scriptOf(html: string): Promise<string | null> {
+  // HTML は正規表現で切らず、workerd の HTMLRewriter で読む（大文字の `<SCRIPT>` や
+  // `</script >` も script として扱う）。
+  const scripts: string[] = [];
+  let current = '';
+  await new HTMLRewriter()
+    .on('script', {
+      element(element) {
+        current = '';
+        element.onEndTag(() => {
+          scripts.push(current);
+        });
+      },
+      text(chunk) {
+        current += chunk.text;
+      },
+    })
+    .transform(new Response(html))
+    .text();
   return scripts.find((s) => s.includes('modelContext')) ?? null;
 }
 
@@ -72,7 +89,7 @@ async function run(script: string, origin = SITE) {
 }
 
 async function pageScript(path = `${MOUNT}/`): Promise<string> {
-  const script = scriptOf(await (await get(path)).text());
+  const script = await scriptOf(await (await get(path)).text());
   if (script === null) throw new Error(`${path} に WebMCP の script が無い`);
   return script;
 }
@@ -196,6 +213,6 @@ describe('WebMCP', () => {
   });
 
   it('404 には置かない', async () => {
-    expect(scriptOf(await (await get(`${MOUNT}/nope/`)).text())).toBeNull();
+    expect(await scriptOf(await (await get(`${MOUNT}/nope/`)).text())).toBeNull();
   });
 });
