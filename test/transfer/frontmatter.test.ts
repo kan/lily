@@ -178,10 +178,26 @@ describe('書く', () => {
     ['途中に空白と #', 'Rust # 入門'],
     ['真偽値に見える', 'true'],
     ['数値に見える', '0.5'],
+    ['整数に見える', '42'],
+    ['点で終わる数に見える', '1.'],
+    ['点で始まる数に見える', '.5'],
+    ['指数付きの数に見える', '-1e5'],
   ])('標準の YAML パーサが別の値に読むものは引用して書く (%s)', (_name, value) => {
     // このパーサは引用が無くても同じ値を読むので、往復では確かめられない。
     // export した Markdown は他の道具にも読まれるので、出力そのものを見る。
     expect(stringifyFrontmatter([['title', value]], '')).toBe(`---\ntitle: '${value}'\n---\n`);
+  });
+
+  it('数に見えない数字列は引用しない', () => {
+    expect(stringifyFrontmatter([['title', '1.2.3']], '')).toBe('---\ntitle: 1.2.3\n---\n');
+  });
+
+  it('末尾で数でなくなる長い数字列でも、すぐに書き終える', () => {
+    // 数の判定の正規表現が数字列の分け方を何通りも試すと、ここで秒単位かかる。
+    const value = '0'.repeat(50_000) + 'x';
+    const started = performance.now();
+    expect(stringifyFrontmatter([['title', value]], '')).toBe(`---\ntitle: ${value}\n---\n`);
+    expect(performance.now() - started).toBeLessThan(500);
   });
 
   it('plain という名前のキーがあっても写像のまま書く', () => {

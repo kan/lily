@@ -9,6 +9,13 @@ Versions up to 0.5.2 are listed on the
 
 ## [Unreleased]
 
+### Fixed
+
+- Writing frontmatter no longer slows down on a long run of digits that does not end
+  as a number (for example a title of many `0`s followed by a letter). The check that
+  decides whether a value looks like a number took quadratic time on such input. It
+  runs on export and on the Markdown answer to AI agents.
+
 ## [0.6.0] - 2026-11-13
 
 ### Added
