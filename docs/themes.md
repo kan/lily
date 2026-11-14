@@ -32,6 +32,10 @@ if you want the same properties:
   `<head>`, when it is set. Core builds the schema.org data and escapes it for a
   script element, so a theme must not escape it again; writing the data per theme would let
   two themes describe the same post differently. It is `null` on the 404 and the preview.
+- **It emits `context.webMcp` as is**, inside a plain `<script>` in `<head>`, when it is set.
+  It is the [WebMCP](./agents.md#webmcp) registration, built and escaped by core, and `null`
+  on the same pages as `jsonLd`. Leave it out and your pages offer no WebMCP tools. A site
+  with a Content Security Policy that forbids inline scripts has to allow this one.
 - **It does not know the filenames of static assets.** What you serve is up to
   `PageConfig.assets`, so `<link rel="icon">` appears only when `SiteConfig.favicon` is set —
   the same shape as `ogImage`, with core involved in neither serving the image nor building

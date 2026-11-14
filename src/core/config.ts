@@ -120,7 +120,27 @@ export type PageConfig = {
    * （2 つ目が無いうちに一般化しても当たらない）。
    */
   readonly ogImageAsset?: string;
+  /**
+   * 公開記事の全文検索（`search.json` と、MCP / WebMCP の `search_posts`）を出すか。
+   * **既定は出す。** false にすると検索の口がすべて消え、API Catalog からも外れる。
+   *
+   * **予約語は設定に関わらず予約したまま**（`search.json` で始まる記事は作れない）。
+   * 切り替えのたびに記事が開けたり開けなくなったりしないようにするため。
+   */
+  readonly search?: boolean;
+  /**
+   * MCP サーバ（`<mount>/mcp` と、その Server Card）を出すか。**既定は出す。**
+   * 予約語の扱いは `search` と同じ。
+   */
+  readonly mcp?: boolean;
 };
+
+/** エージェント向けの口のうち、設定で止められるもの。**既定はどちらも出す。** */
+export type AgentFeatures = { readonly search: boolean; readonly mcp: boolean };
+
+export function agentFeatures(config: Pick<PageConfig, 'search' | 'mcp'>): AgentFeatures {
+  return { search: config.search !== false, mcp: config.mcp !== false };
+}
 
 export type MediaConfig = {
   /**

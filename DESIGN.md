@@ -392,9 +392,47 @@ AI エージェントが記事を探す口（issue #65）。認証の無い入�
   （サーバで動くクライアント）は通す。CORS のヘッダは付けない
 - 規則に合わない検索は**プロトコルのエラーではなく、道具の失敗**（`isError: true`）で返す。
   相手のモデルが読んで直せるように
-- serverInfo の `version` は道具の版（`MCP_SERVER_VERSION`）で、lily の版ではない。
+- serverInfo の `version` は道具の版（`agent/tools.ts` の `TOOLS_VERSION`）で、lily の版ではない。
   コードからパッケージの版を読む手段を持たせていないため。道具を変えたら上げる
 - Worker は gzip で約 90 KiB 大きくなる（0.6.0 の雛形で 463 KiB → 556 KiB）
+
+## エージェントへの知らせ方（API Catalog・Server Card・WebMCP）
+
+issue #65 の段階 4。isitagentready.com の「API / Auth / MCP」の検査へ応える形にした。
+**あのサイトは各検査が何を取りに行くかを書いていない**ので、形は仕様から決め、採点は
+fushihara.net に入れてから確かめる。
+
+- **置き場所は `<mount>/.well-known/` の下。** root mount ならそのまま本物の
+  `/.well-known/` になる。mount 付きのサイトで root の `/.well-known/` を配るのは利用側
+  （lily は mount の外に手を出さない）。予約語は `.well-known` 1 つで済み、下に文書を
+  足しても増えない（`WELL_KNOWN`）
+- **API Catalog（RFC 9727）は公開ページの `Link: rel="api-catalog"` からも指す。** 文書の
+  置き場所は任意で、どのページからでも辿れる（3 節）。mount 付きで root の転送が無くても
+  見つかる
+- **Server Card は `<mount>/mcp/server-card`。** 提案（SEP-2127）が `<MCP の URL>/server-card`
+  に決め、`/.well-known/mcp/…` は退けている。`.well-known` に置くのは、ドメイン単位の索引
+  （AI Catalog）だけ。名前は逆順のホスト + mount（root なら `lily`）。同じホストに 2 つ
+  置いても名前がぶつからないように
+- 3 本とも CORS を `*` で開け、`public, max-age=3600` と ETag を付ける。Server Card は
+  提案の MUST / SHOULD。ほかの 2 本も公開ページから読めるもの以上を含まない。中身は
+  設定だけで決まるので、起動時に 1 度だけ組む
+- **WebMCP は JSON-LD と同じ分担**（core が組み、テーマが置く。`PageContext.webMcp`）。
+  道具の名前・説明・引数は MCP と同じ定義（`agent/tools.ts`。引数は zod から JSON Schema に
+  する）で、中身は `search.json` と Markdown 版を `fetch` するだけ。サーバに新しい口を作らない
+  - `agent/tools.ts` は MCP の SDK に依存させない。公開ページと発見用の文書も読むので、
+    SDK を import すると MCP を止めたサイトの公開側まで SDK に繋がる
+  - 参照の解決（alias・public_id・下書き）はブラウザで写さず、公開ページの route に任せる。
+    ブラウザが見るのは「このサイトの mount の下か」だけ（`urls.underMount` と同じ規則）
+  - **ブラウザで走る部分は文字列で持つ。** 関数を `toString()` すると、利用側のバンドラ
+    （wrangler の esbuild は `keepNames` が既定）が中に `__name(...)` を差し込み、ページでは
+    未定義の関数を呼んで落ちる
+  - URL はページのオリジンで組む。`site.url` で組むと、プレビュー用のホストで開いた
+    ページから本番へ要求が飛ぶ
+  - テストは script をページから取り出し、偽の `document.modelContext` と、このアプリへ
+    届く `fetch` を渡して実際に走らせる（`test/routes/webmcp.test.ts`）
+- **検索と MCP は設定で止められる**（`search` / `mcp`。既定は出す）。`search: false` は
+  検索の口だけ（MCP の `get_post` と `list_tags` は残る）。**予約語は止めても予約したまま。**
+  切り替えのたびに、同じパスの記事が開けたり開けなくなったりしないように
 
 ## 管理 API
 

@@ -5,7 +5,7 @@
  * ため (見た目の差し替えでフィードの形が変わってはいけない)。
  */
 import { Hono } from 'hono';
-import type { LilyBindings, PageConfig } from '../config.ts';
+import { agentFeatures, type LilyBindings, type PageConfig } from '../config.ts';
 import { listMediaByPosts } from '../db/media.ts';
 import { getPublishedPosts } from '../db/posts.ts';
 import { listPublishedTags } from '../db/tags.ts';
@@ -100,8 +100,10 @@ export function feedRoutes(config: PageConfig): Hono<Env> {
    *
    * 続きがあるときだけ `next` に次のページの絶対 URL を入れる。上限と続きの判定は
    * `core/search.ts` が持つ（MCP と同じ規則にするため）。
+   *
+   * `PageConfig.search` が false なら張らない（予約語なので、記事にも当たらず 404）。
    */
-  app.get(urls.search(), async (c) => {
+  if (agentFeatures(config).search) app.get(urls.search(), async (c) => {
     const db = c.env.DB;
     const result = await searchPosts(db, {
       q: c.req.query('q'),

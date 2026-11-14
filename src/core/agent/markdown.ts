@@ -34,6 +34,12 @@ export type MarkdownPages = {
   ): string;
 };
 
+/**
+ * 記事の Markdown の frontmatter にだけある項目。一覧とタグの Markdown には無いので、
+ * 返ってきた Markdown が記事かを見分けるのに使える（WebMCP の `get_post`）。
+ */
+export const POST_ONLY_KEY = 'updated';
+
 /** 設定 1 つにつき 1 度だけ作る（日付の書式の構築は安くない。`Intl`）。 */
 export function createMarkdownPages(site: SiteConfig): MarkdownPages {
   const { isoDate } = createDateFormat(site.timeZone);
@@ -46,7 +52,7 @@ export function createMarkdownPages(site: SiteConfig): MarkdownPages {
           ['description', post.description ?? undefined],
           ['url', post.url],
           ['published', post.publishedAt === null ? undefined : isoDate(post.publishedAt)],
-          ['updated', isoDate(post.updatedAt)],
+          [POST_ONLY_KEY, isoDate(post.updatedAt)],
           ['tags', post.tags.map((t) => t.name)],
           ['lang', site.lang],
         ],

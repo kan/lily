@@ -32,8 +32,25 @@ export const ROUTE = {
   search: 'search.json',
   // MCP サーバ（Streamable HTTP）。公開記事を読む道具だけを出す (issue #65)。
   mcp: 'mcp',
+  // 発見のための文書（API Catalog など。`WELL_KNOWN`）。root mount ならそのまま
+  // サイトの `/.well-known/` になる。
+  wellKnown: '.well-known',
   notFound: '404',
 } as const;
+
+/**
+ * `<mount>/.well-known/` の下に置く文書。**`.well-known` が予約語なので、ここは
+ * 記事のパスとぶつからない**（1 つずつ予約語に足さない）。
+ */
+export const WELL_KNOWN = {
+  // RFC 9727。検索・一覧・MCP の在りか。
+  apiCatalog: 'api-catalog',
+  // MCP Server Card の提案（SEP-2127）の、ドメイン単位の索引。
+  aiCatalog: 'ai-catalog.json',
+} as const;
+
+/** MCP サーバの URL の下に置く Server Card（SEP-2127 が `<MCP の URL>/server-card` と決めている）。 */
+export const MCP_SERVER_CARD = 'server-card';
 
 export const FIXED_ROUTES: readonly string[] = Object.values(ROUTE);
 

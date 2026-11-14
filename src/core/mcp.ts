@@ -15,26 +15,14 @@ import { createMcpHandler, McpServer, type CallToolResult } from '@modelcontextp
 import { z } from 'zod';
 import { createMarkdownPages } from './agent/markdown.ts';
 import { publishedPostMarkdown } from './agent/post-markdown.ts';
-import type { SiteConfig } from './config.ts';
+import { GET_POST, notFoundMessage, SEARCH_POSTS, TOOLS_VERSION } from './agent/tools.ts';
+import type { AgentFeatures, SiteConfig } from './config.ts';
 import { resolvePublishedPost } from './db/post-paths.ts';
 import { listPublishedTags } from './db/tags.ts';
 import type { Paths } from './paths.ts';
 import { postJsonEntries } from './post-json.ts';
 import { NO_STORE } from './routes/cache.ts';
-import {
-  SEARCH_LIMIT_DEFAULT,
-  SEARCH_LIMIT_MAX,
-  SEARCH_OFFSET_MAX,
-  SEARCH_QUERY_MAX,
-  searchErrorMessage,
-  searchPosts,
-} from './search.ts';
-
-/**
- * serverInfo の版。**道具の一覧と形の版**で、lily のパッケージの版ではない（コードから
- * パッケージの版を読む手段を持たせていない）。道具を足す・形を変えるときに上げる。
- */
-export const MCP_SERVER_VERSION = '1';
+import { searchErrorMessage, searchPosts } from './search.ts';
 
 /** 1 回の要求の本文の上限。道具の引数は短い文字列だけなので、既定（4 MiB）は要らない。 */
 const MAX_REQUEST_BODY = 64 * 1024;
@@ -45,33 +33,11 @@ const MAX_REQUEST_BODY = 64 * 1024;
  */
 const ANNOTATIONS = { readOnlyHint: true, idempotentHint: true, openWorldHint: false };
 
-/**
- * 道具の引数。**型と説明だけを書き、上限は書かない。** 上限は `searchPosts` が持ち、
- * 超えたら道具の失敗として説明を返す（相手のモデルが読んで直せる）。ここにも書くと、
- * 上限を変えた日に 2 か所を直すことになり、SDK の検査で断られた側はプロトコルの
- * エラーになって形が揃わない。
- */
-const SEARCH_INPUT = z.object({
-  query: z.string().describe(`Words to search for, separated by spaces (up to ${SEARCH_QUERY_MAX} characters).`),
-  // 整数でない値も `searchPosts` が既定に落とす（search.json と同じ）。
-  limit: z.number().optional().describe(`How many posts to return (default ${SEARCH_LIMIT_DEFAULT}, at most ${SEARCH_LIMIT_MAX}).`),
-  offset: z.number().optional().describe(`How many matching posts to skip (at most ${SEARCH_OFFSET_MAX}). Use next_offset from the previous result.`),
-});
-
-const GET_POST_INPUT = z.object({
-  // 長さの上限も書かない。長すぎる参照は記事のパスとして通らず、「無い」と答える
-  // (本文の大きさは `MAX_REQUEST_BODY` が抑える)。
-  url: z
-    .string()
-    .describe("The post's URL as search_posts returns it. A path under the site, or the post's id, also works."),
-});
-
-/** 「無い」と答えるときに埋め返す参照の長さ。受け取った文字列をそのまま長く返さない。 */
-const ECHO_MAX = 200;
-
 export type McpDeps = {
   readonly site: SiteConfig;
   readonly paths: Paths;
+  /** `search` が false なら `search_posts` を出さない（`PageConfig.search`）。 */
+  readonly features: AgentFeatures;
 };
 
 /**
@@ -83,66 +49,63 @@ export type McpDeps = {
 export function createMcpEndpoint(
   deps: McpDeps,
 ): (request: Request, db: D1Database) => Promise<Response> {
-  const { site, paths } = deps;
+  const { site, paths, features } = deps;
   const { urls } = paths;
   const pages = createMarkdownPages(site);
   const siteUrl = urls.index({ absolute: true });
   const origin = new URL(siteUrl).origin;
+  const getPostInput = GET_POST.input(features.search);
+  const uses = [
+    ...(features.search ? [`${SEARCH_POSTS.name} to find posts by words`] : []),
+    `${GET_POST.name} to read one as Markdown`,
+    'list_tags to see the topics',
+  ];
   const instructions =
     `Read-only access to the published posts of ${site.name} (${siteUrl}). ` +
-    'Use search_posts to find posts by words, get_post to read one as Markdown, ' +
-    'and list_tags to see the topics. Drafts are never visible.';
+    `Use ${uses.join(', ')}. Drafts are never visible.`;
 
   const createServer = (db: D1Database): McpServer => {
     const server = new McpServer(
-      { name: 'lily', title: site.name, version: MCP_SERVER_VERSION, websiteUrl: siteUrl },
+      { name: 'lily', title: site.name, version: TOOLS_VERSION, websiteUrl: siteUrl },
       { instructions },
     );
 
-    server.registerTool(
-      'search_posts',
-      {
-        title: 'Search posts',
-        description:
-          'Search the published posts. A post matches when it contains every word ' +
-          '(space-separated) in its title, description or body; words match as substrings, ' +
-          'so a word inside a Japanese sentence is found. Results are newest first, without ' +
-          "the body: call get_post with a result's url to read it.",
-        inputSchema: SEARCH_INPUT,
-        annotations: ANNOTATIONS,
-      },
-      async ({ query, limit, offset }) => {
-        const result = await searchPosts(db, { q: query, limit, offset });
-        if (!result.ok) {
-          return toolError(searchErrorMessage(result.error, { query: 'query', offset: 'offset' }));
-        }
-        const { query: normalized, posts, nextOffset } = result.value;
-        return toolJson({
-          query: normalized,
-          posts: await postJsonEntries(db, urls, posts),
-          next_offset: nextOffset,
-        });
-      },
-    );
+    if (features.search) {
+      server.registerTool(
+        SEARCH_POSTS.name,
+        {
+          title: SEARCH_POSTS.title,
+          description: SEARCH_POSTS.description,
+          inputSchema: SEARCH_POSTS.input,
+          annotations: ANNOTATIONS,
+        },
+        async ({ query, limit, offset }) => {
+          const result = await searchPosts(db, { q: query, limit, offset });
+          if (!result.ok) {
+            return toolError(searchErrorMessage(result.error, { query: 'query', offset: 'offset' }));
+          }
+          const { query: normalized, posts, nextOffset } = result.value;
+          return toolJson({
+            query: normalized,
+            posts: await postJsonEntries(db, urls, posts),
+            next_offset: nextOffset,
+          });
+        },
+      );
+    }
 
     server.registerTool(
-      'get_post',
+      GET_POST.name,
       {
-        title: 'Get a post',
-        description:
-          'Read one published post as Markdown: a YAML frontmatter block (title, description, ' +
-          'url, published, updated, tags, lang), then the title and the body as it was written. ' +
-          'Attachment links are absolute URLs.',
-        inputSchema: GET_POST_INPUT,
+        title: GET_POST.title,
+        description: GET_POST.description,
+        inputSchema: getPostInput,
         annotations: ANNOTATIONS,
       },
       async ({ url }) => {
         const path = postPathOf(url);
         const post = path === null ? null : await resolvePublishedPost(db, paths, path);
-        if (post === null) {
-          const shown = [...url.trim()].slice(0, ECHO_MAX).join('');
-          return toolError(`No published post at ${shown}.`);
-        }
+        if (post === null) return toolError(notFoundMessage(url));
         return {
           content: [{ type: 'text', text: await publishedPostMarkdown(db, urls, pages, post) }],
         };

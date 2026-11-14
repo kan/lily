@@ -21,6 +21,8 @@ these types and nothing else.
 | `assets` | Filenames served at the mount root (`favicon.ico`, …). **Listing one reserves it as a post path** — serve it without reserving it and a post with that name becomes unreachable |
 | `ogImageAsset` | The asset holding `site.ogImage`, used only for the Bluesky card thumbnail (a Worker cannot fetch a URL in its own zone, so this is read through `ASSETS` instead) |
 | `media.images` | Convert images at delivery time through Cloudflare Images. Without the `IMAGES` binding, `true` still serves originals |
+| `search` | `false` turns off the full-text search: `search.json` and the `search_posts` tool. On by default ([AI agents](./agents.md)) |
+| `mcp` | `false` turns off the MCP server and its Server Card. On by default |
 | `auth` | `(env) => AuthAdapter`. A function because team names and passwords belong in `env`, not in the repository |
 | `bluesky` | `(env) => BlueskyCredentials \| null`. Omit it and the announce endpoint reports "not configured" rather than disappearing |
 
@@ -38,6 +40,8 @@ Everything is relative to `mountPath`.
 | `/posts.json` | Recent posts as JSON (`?limit=`), for another site to list them |
 | `/search.json` | Full-text search over published posts (`?q=`), for AI agents ([AI agents](./agents.md#search)) |
 | `/mcp` | MCP server with read-only tools over the published posts ([AI agents](./agents.md#mcp)) |
+| `/mcp/server-card` | The MCP server's Server Card ([AI agents](./agents.md#discovery)) |
+| `/.well-known/api-catalog`, `/.well-known/ai-catalog.json` | Where the endpoints above are, for agents ([AI agents](./agents.md#discovery)) |
 | `/styles.css` | The theme's stylesheet |
 | `/preview/<token>` | Draft preview |
 | `/media/<public-id>/<filename>` | Attachments |

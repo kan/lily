@@ -11,6 +11,7 @@ import { siteLocale } from './locale.ts';
 import { createPaths } from './paths.ts';
 import { adminRoutes } from './routes/admin.ts';
 import { apiRoutes, type AppEnv } from './routes/api.ts';
+import { discoveryRoutes } from './routes/discovery.ts';
 import { feedRoutes } from './routes/feeds.ts';
 import { AUTH_ROUTE } from './routes/fixed.ts';
 import { mcpRoutes } from './routes/mcp.ts';
@@ -32,6 +33,7 @@ export function createLily<Bindings extends LilyBindings>(
   app.route('/', feedRoutes(config));
   app.route('/', mediaRoutes(config));
   app.route('/', mcpRoutes(config));
+  app.route('/', discoveryRoutes(config));
   app.route('/', publicRoutes(config));
   // サブアプリの notFound は親に引き継がれないので、ここでも設定する。
   app.notFound(createNotFound(config));

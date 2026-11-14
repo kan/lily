@@ -160,6 +160,9 @@ describe('createPaths().urls', () => {
     expect(urls.postsJson()).toBe('/blog/posts.json');
     expect(urls.search()).toBe('/blog/search.json');
     expect(urls.mcp()).toBe('/blog/mcp');
+    expect(urls.mcpServerCard()).toBe('/blog/mcp/server-card');
+    expect(urls.wellKnown('apiCatalog')).toBe('/blog/.well-known/api-catalog');
+    expect(urls.wellKnown('aiCatalog')).toBe('/blog/.well-known/ai-catalog.json');
     expect(urls.sitemap()).toBe('/blog/sitemap-index.xml');
     expect(urls.media({ public_id: 'abc', filename: 'sample.png' })).toBe('/blog/media/abc/sample.png');
     expect(urls.preview('tok')).toBe('/blog/preview/tok');
@@ -246,6 +249,9 @@ describe('URL 生成と予約パスの対応', () => {
       urls.postsJson(),
       urls.search(),
       urls.mcp(),
+      urls.mcpServerCard(),
+      urls.wellKnown('apiCatalog'),
+      urls.wellKnown('aiCatalog'),
       urls.sitemap(),
     ];
 

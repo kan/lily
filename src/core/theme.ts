@@ -77,6 +77,14 @@ export type PageContext = {
    * 必須にした途端にコンパイルが通らなくなる。
    */
   readonly jsonLd?: string | null;
+  /**
+   * WebMCP の登録（`core/agent/webmcp.ts`）。**`<script>` の中にそのまま置ける JS**
+   * （埋めた値は core がエスケープ済み）。ブラウザが WebMCP を持たなければ何もしない。
+   *
+   * 404 とプレビューは null。`jsonLd` と同じく、置くかどうかと場所はテーマが決め、
+   * 後から足した項目なので省略できる。
+   */
+  readonly webMcp?: string | null;
 };
 
 /**

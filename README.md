@@ -64,7 +64,8 @@ Descriptions are generated from the opening of the body when you have not writte
 and Atom (both full text), a sitemap, and `posts.json` for another site that wants to list
 your recent posts. **AI agents get the same URLs as Markdown** (`Accept: text/markdown`), with
 JSON-LD and `Link` headers on the HTML, and can search and read the published posts through
-`search.json` or an MCP server at `/mcp` — [details](./docs/agents.md).
+`search.json`, an MCP server at `/mcp` or WebMCP tools on the page, all listed in an API
+Catalog — [details](./docs/agents.md).
 
 **An admin UI, shipped prebuilt.** List, edit, preview, drag-and-drop images, change paths,
 publication date and time, tag completion, paging, filtering by tag or keyword, a page that

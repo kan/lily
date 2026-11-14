@@ -139,6 +139,12 @@ export const MOUNTED_ASSETS = ['favicon.ico', 'favicon.svg', 'apple-touch-icon.p
  * 済むようにしてある。写すと、フィクスチャを直した日に片方だけ古くなる。
  */
 export function mountedAppWith(auth: LilyConfig<LilyBindings>['auth']) {
+  return mountedApp_(auth, {});
+}
+
+type Features = Pick<LilyConfig<LilyBindings>, 'search' | 'mcp'>;
+
+function mountedApp_(auth: LilyConfig<LilyBindings>['auth'], features: Features) {
   return createLily({
     site: SITE_CONFIG,
     mountPath: MOUNT_PATH,
@@ -148,10 +154,32 @@ export function mountedAppWith(auth: LilyConfig<LilyBindings>['auth']) {
     media: { images: true },
     auth,
     bluesky: () => stubBlueskyCredentials,
+    ...features,
   });
 }
 
 const mountedApp = mountedAppWith(() => stubAuth);
+
+/** 同じ設定で、止められる口を止めたアプリ（`PageConfig.search` / `mcp`）。 */
+export function mountedAppWithFeatures(features: Features) {
+  return mountedApp_(() => stubAuth, features);
+}
+
+/** JSON-RPC の応答。テストでは中身の形を都度書かずに読む。 */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- JsonBody と同じ理由
+export type RpcResponse = { result?: any; error?: { code: number; message: string } };
+
+/**
+ * MCP の応答の JSON-RPC を読む。**2025 年の版は SSE、2026 年の版は JSON で返る**（どちらも
+ * 仕様が許す形で、クライアントは両方を読める）。SSE なら最初の `data:` 行を読む。
+ */
+export async function readRpc(res: Response): Promise<RpcResponse> {
+  const text = await res.text();
+  if (!res.headers.get('Content-Type')?.startsWith('text/event-stream')) return JSON.parse(text) as RpcResponse;
+  const data = text.split('\n').find((line) => line.startsWith('data: '));
+  if (data === undefined) throw new Error(`SSE に data が無い: ${text}`);
+  return JSON.parse(data.slice('data: '.length)) as RpcResponse;
+}
 
 /** 任意のアプリへ 1 本投げる。**`env` を渡すのを忘れない**ためのもの。 */
 export async function fetchOn(
