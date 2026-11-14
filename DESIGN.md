@@ -358,6 +358,44 @@ AI エージェントが記事を探す口（issue #65）。認証の無い入�
 - レート制限は lily では持たない（Cloudflare のルールで掛けてもらう）。`s-maxage=60`
   で同じ問い合わせの繰り返しだけはエッジが吸収する
 
+## MCP サーバ（`<mount>/mcp`）
+
+公開記事を読む道具だけを出す（`search_posts` / `get_post` / `list_tags`。`core/mcp.ts`）。
+書き込みの道具は無いので、認証の外に置ける。
+
+- **プロトコルは `@modelcontextprotocol/server`（v2）に任せる。** 2026-07-28 版で
+  initialize の握手・セッション・`ping` が無くなり、要求ごとのヘッダの検査と
+  `server/discover` が入った。旧い版のクライアントもまだ多いので、両方を受ける必要があり、
+  その解釈を自前で持つより SDK の `createMcpHandler` に任せる
+  - 旧い一体型の `@modelcontextprotocol/sdk`（1.x）は express などを引き込み、2026 版も
+    話せないので使わない。v2 の server は依存が `zod`（lily が既に持つ）と core だけ
+  - Cloudflare の `agents` も使わない。`createMcpHandler` は server パッケージ自身にあり、
+    `agents` は依存と peer が多すぎてライブラリに入れられない
+- **stateless。** 要求ごとにサーバを作る（SDK の McpServer は同時の要求で共有できない）。
+  セッションも SSE の流し続ける口も持たない。2026 版の応答は JSON、旧い版は SDK が SSE で
+  返す（どちらも仕様が許す形）。`responseMode` は既定（auto）のまま。道具は途中で通知を
+  出さないので JSON 1 本になる。`'json'` を指定すると、SDK がハンドラを作るたびに（つまり
+  要求ごとに）警告をログへ出す
+- **道具の引数の zod には上限を書かない。** 上限は `searchPosts` が持ち、超えたら道具の
+  失敗（説明付き）で返す。zod にも書くと、上限が 2 か所になるうえ、SDK の検査で断られた
+  側はプロトコルのエラーになり、相手のモデルが読める説明にならない。`limit` は
+  `search.json` と同じく丸める
+- **道具の中身は公開側と同じものを呼ぶ。** 検索は `core/search.ts`（上限もそちら）、
+  1 件の形は `post-json.ts`、記事の Markdown は `agent/post-markdown.ts`。`get_post` は
+  `Accept: text/markdown` の記事ページと同じ文字列を返す（テストが突き合わせている）
+- **`get_post` の参照の解決は公開ページと同じ `resolvePublishedPost`**（正規化 →
+  `resolvePath` → 公開判定）。mount を外すのも同じ `urls.underMount`。alias・大小文字違い・
+  public_id で引ける。下書きもよそのオリジンも mount の外も「無い」と同じ答えにする
+  （公開ページが下書きを 404 にするのと同じ理由。存在が分からないように）
+- **Origin は完全一致で見る。** 仕様は DNS rebinding の対策として Origin の検査を MUST に
+  している。SDK の検査関数はホスト名だけを比べるので使わない。Origin の無い要求
+  （サーバで動くクライアント）は通す。CORS のヘッダは付けない
+- 規則に合わない検索は**プロトコルのエラーではなく、道具の失敗**（`isError: true`）で返す。
+  相手のモデルが読んで直せるように
+- serverInfo の `version` は道具の版（`MCP_SERVER_VERSION`）で、lily の版ではない。
+  コードからパッケージの版を読む手段を持たせていないため。道具を変えたら上げる
+- Worker は gzip で約 90 KiB 大きくなる（0.6.0 の雛形で 463 KiB → 556 KiB）
+
 ## 管理 API
 
 リクエストの検証は zod を `zValidator` で **1 度だけ**書き、レスポンスの型は

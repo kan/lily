@@ -6,8 +6,9 @@
 import { Hono, type Context } from 'hono';
 import { blogJsonLd, postJsonLd, tagJsonLd } from '../agent/json-ld.ts';
 import { createMarkdownPages } from '../agent/markdown.ts';
+import { publishedPostMarkdown } from '../agent/post-markdown.ts';
 import type { LilyBindings, PageConfig } from '../config.ts';
-import { getCanonicalPath, resolvePath } from '../db/post-paths.ts';
+import { getCanonicalPath, resolvePublishedPost } from '../db/post-paths.ts';
 import {
   countPublishedPosts,
   countPublishedPostsByTagSlug,
@@ -20,7 +21,6 @@ import { storedOrRenderedHtml } from '../delivery.ts';
 import { getTagBySlug, getTagsForPost, getTagsForPosts } from '../db/tags.ts';
 import { createPaths } from '../paths.ts';
 import { renderMarkdown } from '../render/index.ts';
-import { absolutizeMediaReferences } from '../render/markdown-media.ts';
 import { resolveMediaUrls } from '../render/placeholder.ts';
 import type { PageContext, Pagination } from '../theme.ts';
 import { hashPreviewToken } from '../tokens.ts';
@@ -34,7 +34,8 @@ type Env = { Bindings: LilyBindings };
 
 export function publicRoutes(config: PageConfig): Hono<Env> {
   const app = new Hono<Env>();
-  const { urls, normalizePostPath } = createPaths(config);
+  const paths = createPaths(config);
+  const { urls } = paths;
   const mount = urls.mountPath;
   const { theme } = config;
   // 中身が変わるのはデプロイのときだけなので、ETag は起動時に 1 度だけ組む。
@@ -199,20 +200,16 @@ export function publicRoutes(config: PageConfig): Hono<Env> {
   app.get(`${mount}/*`, async (c) => {
     const db = c.env.DB;
     // ワイルドカードは名前付きパラメータとして取れないので、パスから直接切り出す。
-    // mount とその後ろのスラッシュを落とした残りが記事のパス。
-    const requested = c.req.path.slice(mount.length + 1);
+    // この route は mount の下にしか当たらないはずで、null ならルータと `underMount`
+    // の規則が食い違っている（黙って mount の root として読まない）。
+    const requested = urls.underMount(c.req.path);
+    if (requested === null) return await notFound(c);
 
-    // リクエストのパスも保存時と同じ規則で正規化する。ここを別実装にすると、
-    // 保存できたのに引けない (あるいはその逆の) パスが生まれる。
-    const normalized = normalizePostPath(requested);
-    if (!normalized.ok) return await notFound(c);
-
-    const resolved = await resolvePath(db, normalized.value);
-    if (!resolved) return await notFound(c);
-
+    // 正規化と公開判定は `resolvePublishedPost`（MCP の `get_post` と同じ規則）。
     // 公開判定は 308 より先。後にすると、下書きのパスを当てられたときに
     // リダイレクトの有無で存在が分かってしまう。
-    if (resolved.status !== 'published') return await notFound(c);
+    const resolved = await resolvePublishedPost(db, paths, requested);
+    if (!resolved) return await notFound(c);
 
     // alias・大小文字違い・末尾スラッシュ無し・連続スラッシュ・エンコードの揺れを
     // まとめて canonical へ寄せる。**比較はリクエストのパスそのもの**で行う。
@@ -227,16 +224,9 @@ export function publicRoutes(config: PageConfig): Hono<Env> {
     const format = requestFormat(c);
     const self = urls.post(resolved.canonical_path, { absolute: true });
 
-    // **Markdown は原本（`body_md`）から返す。** HTML から変換しないので、書き手の記法が
-    // そのまま届く。添付の参照だけを絶対 URL に直す（保存してある本文は変えない）。
+    // **Markdown は原本（`body_md`）から返す**（MCP の `get_post` と同じもの）。
     if (format === 'markdown') {
-      const [tags, media] = await Promise.all([
-        getTagsForPost(db, resolved.id),
-        listMediaByPost(db, resolved.id),
-      ]);
-      const body = absolutizeMediaReferences(resolved.body_md, media, urls);
-      const summary = toPostSummary(urls, resolved, tags, { absolute: true });
-      return respond(format, markdown.post(summary, body), { self });
+      return respond(format, await publishedPostMarkdown(db, urls, markdown, resolved), { self });
     }
 
     const stored = await storedOrRenderedHtml(resolved, () => listMediaByPost(db, resolved.id));

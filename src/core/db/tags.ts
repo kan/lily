@@ -29,6 +29,17 @@ export async function listTagsWithCounts(db: D1Database): Promise<TagWithCountRo
   return results;
 }
 
+/**
+ * 公開記事が付いているタグだけ（サイトマップと MCP の `list_tags`）。**呼ぶ側で 0 件を
+ * 落とさない**ので、下書きにだけ付いたタグを出す口が増えても漏れない。
+ *
+ * SQL は `listTagsWithCounts` を使い回す（並びと数え方を 1 つの問い合わせに置く）。
+ * タグの数は少ないので、0 件を JS で落としても差は出ない。
+ */
+export async function listPublishedTags(db: D1Database): Promise<TagWithCountRow[]> {
+  return (await listTagsWithCounts(db)).filter((tag) => tag.post_count > 0);
+}
+
 export async function getTagsForPost(db: D1Database, postId: number): Promise<TagRow[]> {
   const { results } = await db
     .prepare(

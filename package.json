@@ -73,6 +73,7 @@
   },
   "dependencies": {
     "@hono/zod-validator": "^0.9.1",
+    "@modelcontextprotocol/server": "^2.4.0",
     "@shikijs/langs": "^4.4.3",
     "@shikijs/rehype": "^4.4.3",
     "@shikijs/themes": "^4.4.3",
