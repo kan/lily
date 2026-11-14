@@ -76,6 +76,33 @@ with `posts`. Words shorter than three characters cannot use a trigram index and
 matched by scanning the indexed posts instead. **The table stops `wrangler d1 export` from
 working** — see [Portable and backups](./portable.md#exporting-d1-with-the-search-index).
 
+## MCP
+
+`<mount>/mcp` is an MCP server (Streamable HTTP) with three read-only tools. It needs no
+authentication and has no tool that writes, so nothing it serves is more than the public
+pages already show.
+
+| Tool | Arguments | Returns |
+|---|---|---|
+| `search_posts` | `query`, `limit` (1–20), `offset` (0–1000) | The [search](#search) results, in the same shape, as `structuredContent` and as JSON text. `next_offset` instead of `next` |
+| `get_post` | `url` | The post as Markdown, the same text `Accept: text/markdown` returns. `url` may also be a path under the site or the post's id. A draft, a post that does not exist and a URL on another origin all answer "No published post" |
+| `list_tags` | none | Tags that have published posts, with their URL and post count, most used first |
+
+- **Both protocol eras are served**: 2026-07-28 (no handshake; `server/discover`) and the
+  revisions before it (`initialize`). The server is stateless: nothing is kept between
+  requests, `GET` and `DELETE` answer `405`. The protocol is handled by
+  `@modelcontextprotocol/server`.
+- Every tool is annotated `readOnlyHint: true`, `idempotentHint: true`, `openWorldHint: false`.
+- A query the search refuses (too long, too many words, `offset` over 1000) comes back as a
+  tool result with `isError: true` and an explanation, not as a protocol error.
+- **A request with an `Origin` header is served only when it is the site's own origin**
+  (otherwise `403`), as the specification requires against DNS rebinding. Requests without
+  one — MCP clients running on a server — are served. lily sends no CORS headers.
+- Responses carry `Cache-Control: no-store`. A request body over 64 KiB is refused with
+  `413`. As with search, **lily does not rate-limit it**.
+
+To connect a client, give it `https://<your site><mount>/mcp`.
+
 ## Caching
 
 Both forms carry `Vary: Accept`. **Only the HTML may sit in a shared cache**

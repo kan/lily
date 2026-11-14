@@ -18,11 +18,20 @@ Versions up to 0.5.2 are listed on the
 - Migration `0004_posts_fts.sql` adds the search index: an FTS5 table that triggers keep in
   step with the posts, filled with the published posts when it is applied. **Run the
   migrations before deploying**, as with every release.
+- `<mount>/mcp` is an MCP server with three read-only tools: `search_posts`, `get_post` (a
+  post as Markdown) and `list_tags`. It needs no authentication, serves both the 2026-07-28
+  protocol and the revisions before it, and refuses requests from another origin. See
+  [AI agents](docs/agents.md#mcp).
+- lily now depends on `@modelcontextprotocol/server`. The Worker grows by about 90 KiB
+  gzipped.
 
 ### Changed
 
-- **`search.json` is now a reserved path.** A post whose path starts with that segment can
-  no longer be created; an existing one would be shadowed by the search endpoint.
+- **`search.json` and `mcp` are now reserved as the first segment of a post path.** A post
+  whose path starts with either can no longer be created, and **an existing one stops being
+  reachable**: its URL answers 404 (or the endpoint itself), while `posts.json`, the feeds and
+  the sitemap still list it. Give such a post another path before upgrading; its id still
+  reaches it.
 - **`wrangler d1 export` no longer works as it stands**: D1 refuses to export a database with
   a virtual table, and the search index is one. The portable export and the R2 backups are
   not affected. The steps to take a D1 dump anyway are in

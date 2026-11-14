@@ -30,6 +30,8 @@ export const ROUTE = {
   postsJson: 'posts.json',
   // 公開記事の全文検索 (`?q=`)。AI エージェントが記事を探す口 (issue #65)。
   search: 'search.json',
+  // MCP サーバ（Streamable HTTP）。公開記事を読む道具だけを出す (issue #65)。
+  mcp: 'mcp',
   notFound: '404',
 } as const;
 

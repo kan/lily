@@ -50,6 +50,27 @@ export async function resolvePath(db: D1Database, path: string): Promise<Resolve
 }
 
 /**
+ * mount より下のパスから**公開記事**を引く。公開ページと MCP の `get_post` が同じ規則で
+ * 記事に辿り着くように、ここに置く。
+ *
+ * - パスは保存時と同じ規則で正規化してから引く。別の規則にすると、保存できたのに
+ *   引けない (あるいはその逆の) パスが生まれる
+ * - **下書きは「無い」と同じ答えにする。** 呼ぶ側が別の答え方 (308 など) をすると、
+ *   下書きのパスを当てられたときに存在が分かってしまう
+ */
+export async function resolvePublishedPost(
+  db: D1Database,
+  paths: PostPaths,
+  path: string,
+): Promise<ResolvedPathRow | null> {
+  const normalized = paths.normalizePostPath(path);
+  if (!normalized.ok) return null;
+  const resolved = await resolvePath(db, normalized.value);
+  if (resolved === null || resolved.status !== 'published') return null;
+  return resolved;
+}
+
+/**
  * パスの並び。**canonical が先頭、以下 path 昇順。**
  *
  * 1 件版とまとめ取得で別々に書くと、export の frontmatter が「記事の取り方」で

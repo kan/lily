@@ -192,6 +192,12 @@ export type FeedKind = 'rss' | 'atom';
  */
 export interface Urls {
   readonly mountPath: string;
+  /**
+   * URL のパス部分から mount を外した残り（記事のパスの候補）。**`post()` の逆。**
+   * mount の外なら null。正規化はしないので、記事のパスとして使う前に
+   * `normalizePostPath` を通す。
+   */
+  underMount(pathname: string): string | null;
   index(options?: PageOptions): string;
   post(canonicalPath: string, options?: UrlOptions): string;
   tag(tag: TagRef, options?: PageOptions): string;
@@ -204,6 +210,8 @@ export interface Urls {
   postsJson(options?: UrlOptions): string;
   /** 公開記事の全文検索。問い合わせ (`?q=`) は呼び出し側が足す。 */
   search(options?: UrlOptions): string;
+  /** MCP サーバの入口（Streamable HTTP）。 */
+  mcp(options?: UrlOptions): string;
   sitemap(options?: UrlOptions): string;
   /** サイトマップの中身。index から指す 1 本。 */
   sitemapUrls(options?: UrlOptions): string;
@@ -278,6 +286,10 @@ function createUrls(config: PathsConfig): Urls {
 
   return {
     mountPath,
+    underMount: (pathname) => {
+      if (pathname === mountPath) return '';
+      return pathname.startsWith(`${mountPath}/`) ? pathname.slice(mountPath.length + 1) : null;
+    },
     index: (o) => build(paged('', o?.page), o),
     post: (canonicalPath, o) => build(`/${encodePath(canonicalPath)}/`, o),
     tag: (tag, o) => build(paged(`/${ROUTE.tags}/${encodeURIComponent(tag.slug)}`, o?.page), o),
@@ -292,6 +304,7 @@ function createUrls(config: PathsConfig): Urls {
     adminPost: (publicId, o) => build(`/${ROUTE.admin}/${adminPostHash(publicId)}`, o),
     postsJson: (o) => build(`/${ROUTE.postsJson}`, o),
     search: (o) => build(`/${ROUTE.search}`, o),
+    mcp: (o) => build(`/${ROUTE.mcp}`, o),
     sitemap: (o) => build(`/${ROUTE.sitemap}`, o),
     sitemapUrls: (o) => build(`/${ROUTE.sitemapUrls}`, o),
     stylesheet: (o) => build(`/${ROUTE.styles}`, o),

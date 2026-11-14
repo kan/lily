@@ -37,6 +37,7 @@ Everything is relative to `mountPath`.
 | `/sitemap-index.xml`, `/sitemap-0.xml` | Sitemap |
 | `/posts.json` | Recent posts as JSON (`?limit=`), for another site to list them |
 | `/search.json` | Full-text search over published posts (`?q=`), for AI agents ([AI agents](./agents.md#search)) |
+| `/mcp` | MCP server with read-only tools over the published posts ([AI agents](./agents.md#mcp)) |
 | `/styles.css` | The theme's stylesheet |
 | `/preview/<token>` | Draft preview |
 | `/media/<public-id>/<filename>` | Attachments |

@@ -8,21 +8,16 @@ import { Hono } from 'hono';
 import type { LilyBindings, PageConfig } from '../config.ts';
 import { listMediaByPosts } from '../db/media.ts';
 import { getPublishedPosts } from '../db/posts.ts';
-import { getTagsForPosts, listTagsWithCounts } from '../db/tags.ts';
+import { listPublishedTags } from '../db/tags.ts';
 import type { PostWithPathRow } from '../db/types.ts';
 import { storedOrRenderedHtml } from '../delivery.ts';
 import { buildAtom, buildRss, type FeedEntry } from '../feed/index.ts';
 import { toFeedHtml } from '../feed/html.ts';
 import { createPaths, type Urls } from '../paths.ts';
+import { postJsonEntries } from '../post-json.ts';
 import type { RenderMedia } from '../render/index.ts';
 import { resolveMediaUrls } from '../render/placeholder.ts';
-import {
-  searchPosts,
-  SEARCH_OFFSET_MAX,
-  SEARCH_QUERY_MAX,
-  SEARCH_TERMS_MAX,
-  type SearchQueryError,
-} from '../search.ts';
+import { searchErrorMessage, searchPosts } from '../search.ts';
 import { buildSitemap, buildSitemapIndex } from '../sitemap.ts';
 import { postDescription } from '../summary.ts';
 import { groupByPost } from '../view.ts';
@@ -39,14 +34,6 @@ const FEED_LIMIT = 50;
 /** `posts.json` の既定と上限。本体サイトの `/api/blog` と同じ考え方。 */
 const POSTS_JSON_DEFAULT = 5;
 const POSTS_JSON_MAX = 20;
-
-/** 400 で返す説明。**機械が読む `error` と、人が読む `message` を分ける。** */
-const SEARCH_ERROR_MESSAGE: Record<SearchQueryError, string> = {
-  empty: 'Give the words to search for in ?q=.',
-  'too-long': `?q= is limited to ${SEARCH_QUERY_MAX} characters.`,
-  'too-many-terms': `?q= is limited to ${SEARCH_TERMS_MAX} words.`,
-  'offset-too-large': `?offset= is limited to ${SEARCH_OFFSET_MAX}.`,
-};
 
 export function feedRoutes(config: PageConfig): Hono<Env> {
   const app = new Hono<Env>();
@@ -72,7 +59,7 @@ export function feedRoutes(config: PageConfig): Hono<Env> {
 
   app.get(urls.sitemapUrls(), async (c) => {
     const db = c.env.DB;
-    const [posts, tags] = await Promise.all([getPublishedPosts(db), listTagsWithCounts(db)]);
+    const [posts, tags] = await Promise.all([getPublishedPosts(db), listPublishedTags(db)]);
 
     return xml(
       buildSitemap([
@@ -82,9 +69,7 @@ export function feedRoutes(config: PageConfig): Hono<Env> {
           lastModified: new Date(post.updated_at),
         })),
         // 公開記事が付いているタグだけ。0 件のタグページを索引に出しても意味がない。
-        ...tags
-          .filter((tag) => tag.post_count > 0)
-          .map((tag) => ({ url: urls.tag(tag, { absolute: true }) })),
+        ...tags.map((tag) => ({ url: urls.tag(tag, { absolute: true }) })),
       ]),
     );
   });
@@ -102,7 +87,7 @@ export function feedRoutes(config: PageConfig): Hono<Env> {
     const posts = await getPublishedPosts(db, { limit });
 
     return Response.json(
-      { posts: await postSummaries(db, urls, posts) },
+      { posts: await postJsonEntries(db, urls, posts) },
       { headers: { 'Cache-Control': SHORT_EDGE } },
     );
   });
@@ -125,7 +110,11 @@ export function feedRoutes(config: PageConfig): Hono<Env> {
     });
     if (!result.ok) {
       return Response.json(
-        { error: result.error, message: SEARCH_ERROR_MESSAGE[result.error] },
+        // 機械が読む `error` と、人が読む `message` を分ける。
+        {
+          error: result.error,
+          message: searchErrorMessage(result.error, { query: '?q=', offset: '?offset=' }),
+        },
         { status: 400, headers: { 'Cache-Control': SHORT_EDGE } },
       );
     }
@@ -141,7 +130,7 @@ export function feedRoutes(config: PageConfig): Hono<Env> {
     }
 
     return Response.json(
-      { query, posts: await postSummaries(db, urls, posts), next },
+      { query, posts: await postJsonEntries(db, urls, posts), next },
       { headers: { 'Cache-Control': SHORT_EDGE } },
     );
   });
@@ -165,37 +154,6 @@ function clampLimit(raw: string | undefined): number {
   if (!Number.isInteger(value) || value < 1) return POSTS_JSON_DEFAULT;
   return Math.min(value, POSTS_JSON_MAX);
 }
-
-/**
- * `posts.json` と検索が返す 1 件の形。**2 つの口で同じ形にする**ので 1 箇所に置く。
- * タグはまとめて 1 回で引く。
- */
-async function postSummaries(
-  db: D1Database,
-  urls: Urls,
-  posts: readonly PostWithPathRow[],
-): Promise<PostSummary[]> {
-  const tags = groupByPost(await getTagsForPosts(db, posts.map((post) => post.id)));
-  return posts.map((post) => ({
-    id: post.public_id,
-    title: post.title,
-    // canonical の絶対 URL。読む側が組み立て直さずに済む。
-    url: urls.post(post.canonical_path, { absolute: true }),
-    // 公開記事なので published_at は必ずある (DB の CHECK)。
-    published_at: post.published_at as string,
-    description: postDescription(post),
-    tags: (tags.get(post.id) ?? []).map((tag) => tag.name),
-  }));
-}
-
-type PostSummary = {
-  id: string;
-  title: string;
-  url: string;
-  published_at: string;
-  description: string | null;
-  tags: string[];
-};
 
 /**
  * フィードに載せる記事。

@@ -28,6 +28,27 @@ export const SEARCH_OFFSET_MAX = 1000;
 
 export type SearchQueryError = 'empty' | 'too-long' | 'too-many-terms' | 'offset-too-large';
 
+/**
+ * 断った理由の説明（英語。機械が読む相手に返す）。**上限の数をここで埋める**ので、
+ * `search.json` と MCP で説明が食い違わない。引数の名前だけは入口ごとに違う
+ * (`?q=` と `query`) ので、呼ぶ側が渡す。
+ */
+export function searchErrorMessage(
+  error: SearchQueryError,
+  names: { readonly query: string; readonly offset: string },
+): string {
+  switch (error) {
+    case 'empty':
+      return `Give the words to search for in ${names.query}.`;
+    case 'too-long':
+      return `${names.query} is limited to ${SEARCH_QUERY_MAX} characters.`;
+    case 'too-many-terms':
+      return `${names.query} is limited to ${SEARCH_TERMS_MAX} words.`;
+    case 'offset-too-large':
+      return `${names.offset} is limited to ${SEARCH_OFFSET_MAX}.`;
+  }
+}
+
 export type SearchRequest = {
   /** 利用者が書いたままの問い合わせ。 */
   readonly q: string | undefined;

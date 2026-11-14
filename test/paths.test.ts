@@ -159,12 +159,23 @@ describe('createPaths().urls', () => {
     expect(urls.feed('atom')).toBe('/blog/atom.xml');
     expect(urls.postsJson()).toBe('/blog/posts.json');
     expect(urls.search()).toBe('/blog/search.json');
+    expect(urls.mcp()).toBe('/blog/mcp');
     expect(urls.sitemap()).toBe('/blog/sitemap-index.xml');
     expect(urls.media({ public_id: 'abc', filename: 'sample.png' })).toBe('/blog/media/abc/sample.png');
     expect(urls.preview('tok')).toBe('/blog/preview/tok');
     expect(urls.admin()).toBe('/blog/admin/');
     expect(urls.admin('posts')).toBe('/blog/admin/posts');
     expect(urls.asset('favicon.svg')).toBe('/blog/favicon.svg');
+  });
+
+  it('underMount は post() の逆で、mount の外は null', () => {
+    const urls = urlsOf(site);
+    expect(urls.underMount(urls.post('ratatoskr/1'))).toBe('ratatoskr/1/');
+    expect(urls.underMount('/blog')).toBe('');
+    expect(urls.underMount('/blogger/x/')).toBeNull();
+    expect(urls.underMount('/x/')).toBeNull();
+    const root = createPaths({ site: { url: 'https://example.com' }, mountPath: '/' }).urls;
+    expect(root.underMount('/x/')).toBe('x/');
   });
 
   it('一覧のページ番号は 2 ページ目から付く', () => {
@@ -234,6 +245,7 @@ describe('URL 生成と予約パスの対応', () => {
       urls.admin('posts'),
       urls.postsJson(),
       urls.search(),
+      urls.mcp(),
       urls.sitemap(),
     ];
 
