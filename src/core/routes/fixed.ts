@@ -28,6 +28,8 @@ export const ROUTE = {
   // 中身を 2 ファイルに分けて出していたので、こちらも同じ 2 本を配る。
   sitemapUrls: 'sitemap-0.xml',
   postsJson: 'posts.json',
+  // 公開記事の全文検索 (`?q=`)。AI エージェントが記事を探す口 (issue #65)。
+  search: 'search.json',
   notFound: '404',
 } as const;
 

@@ -158,6 +158,7 @@ describe('createPaths().urls', () => {
     expect(urls.feed('rss')).toBe('/blog/rss.xml');
     expect(urls.feed('atom')).toBe('/blog/atom.xml');
     expect(urls.postsJson()).toBe('/blog/posts.json');
+    expect(urls.search()).toBe('/blog/search.json');
     expect(urls.sitemap()).toBe('/blog/sitemap-index.xml');
     expect(urls.media({ public_id: 'abc', filename: 'sample.png' })).toBe('/blog/media/abc/sample.png');
     expect(urls.preview('tok')).toBe('/blog/preview/tok');
@@ -232,6 +233,7 @@ describe('URL 生成と予約パスの対応', () => {
       urls.admin(),
       urls.admin('posts'),
       urls.postsJson(),
+      urls.search(),
       urls.sitemap(),
     ];
 

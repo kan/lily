@@ -175,6 +175,72 @@ export async function getPublishedPostsByTagSlug(
   return results;
 }
 
+/**
+ * この文字数未満の語は trigram の索引 (`posts_fts`) に当たらない (3 文字ずつの組で
+ * 引くため)。tokenizer を変える日はここも見直す。
+ */
+const TRIGRAM_MIN = 3;
+
+/**
+ * 公開記事の全文検索。**語をすべて含む記事を、一覧と同じ新しい順で返す。**
+ *
+ * 索引 (`posts_fts`) には公開記事しか入っていない (migration 0004 のトリガ)。
+ * それでも `PUBLISHED_WHERE` を重ねるのは、索引と posts がずれた日に下書きを
+ * 出さないため。
+ *
+ * - 3 文字以上の語は索引で引く (`MATCH`)。語は引用符で囲んだ phrase にして
+ *   渡すので、`AND` や `*` のような FTS5 の構文として読まれない
+ * - **3 文字未満の語は LIKE で探す。** trigram の索引に当たらないため。走査は
+ *   索引の表 (公開記事の写し) の上で行う
+ *
+ * 関連度では並べない。trigram の bm25 は語の長さに強く引きずられて当てにならず、
+ * 新しい順なら `posts.json` と同じ並びとして読める。
+ */
+export async function searchPublishedPosts(
+  db: D1Database,
+  terms: readonly string[],
+  options: ListOptions = {},
+): Promise<PostWithPathRow[]> {
+  const conditions: string[] = [];
+  const values: (string | number)[] = [];
+
+  const indexed: string[] = [];
+  const short: string[] = [];
+  // 文字数はコードポイントで数える。trigram は文字単位で組を作るので、UTF-16 の長さで
+  // 数えると、サロゲートペアの絵文字 2 文字を索引で引きに行って当たらない。
+  for (const term of terms) ([...term].length >= TRIGRAM_MIN ? indexed : short).push(term);
+
+  if (indexed.length > 0) {
+    conditions.push('posts_fts MATCH ?');
+    values.push(indexed.map((term) => `"${term.replaceAll('"', '""')}"`).join(' AND '));
+  }
+  for (const term of short) {
+    const like = likeAnyColumn(
+      ['posts_fts.title', 'posts_fts.description', 'posts_fts.body'],
+      term,
+    );
+    conditions.push(like.condition);
+    values.push(...like.values);
+  }
+  // 語が無ければ全件になる。呼び出し側は `parseSearchQuery` で空を弾くが、
+  // ここでも空の条件で公開記事を全部返さない。
+  if (conditions.length === 0) return [];
+
+  const { results } = await db
+    .prepare(
+      `SELECT ${postColumns('p')}, c.path AS canonical_path
+         FROM posts_fts
+         JOIN posts p ON p.id = posts_fts.rowid
+         JOIN post_paths c ON c.post_id = p.id AND c.is_canonical = 1
+        WHERE ${PUBLISHED_WHERE('p')} AND ${conditions.join(' AND ')}
+        ORDER BY ${PUBLISHED_ORDER}
+        LIMIT ? OFFSET ?`,
+    )
+    .bind(...values, options.limit ?? -1, options.offset ?? 0)
+    .all<PostWithPathRow>();
+  return results;
+}
+
 export async function countPublishedPosts(db: D1Database): Promise<number> {
   const row = await db
     .prepare(`SELECT count(*) AS n FROM posts p WHERE ${PUBLISHED_WHERE('p')}`)
@@ -222,6 +288,22 @@ function likePattern(q: string): string {
 }
 
 /**
+ * 「どれかの列が語を含む」条件。管理画面の絞り込みと公開の検索で、**一致の仕方を
+ * 揃える**ために 1 箇所に置く (エスケープを片方だけ直すと、2 つの検索で同じ語の
+ * 当たり方が黙って食い違う)。列は SQL の式をそのまま並べる。
+ */
+function likeAnyColumn(
+  columns: readonly string[],
+  term: string,
+): { condition: string; values: string[] } {
+  const pattern = likePattern(term);
+  return {
+    condition: `(${columns.map((column) => `${column} LIKE ? ESCAPE '\\'`).join(' OR ')})`,
+    values: columns.map(() => pattern),
+  };
+}
+
+/**
  * WHERE 句と bind する値を組む。**`p` の別名を前提**にする。
  *
  * 番号付きの placeholder は使わず `?` を並べる。値の順番と並びが 1 対 1 で
@@ -247,13 +329,9 @@ function postFilter(filter: PostFilter): { where: string; values: (string | null
   if (filter.q) {
     // 本文まで見る。「あの記事どこだっけ」で引けないと検索の意味が薄いので、
     // 全走査になることは承知で入れてある (数百本までは D1 でも一瞬)。
-    const pattern = likePattern(filter.q);
-    conditions.push(
-      `(p.title LIKE ? ESCAPE '\\'
-        OR coalesce(p.description, '') LIKE ? ESCAPE '\\'
-        OR p.body_md LIKE ? ESCAPE '\\')`,
-    );
-    values.push(pattern, pattern, pattern);
+    const like = likeAnyColumn(['p.title', "coalesce(p.description, '')", 'p.body_md'], filter.q);
+    conditions.push(like.condition);
+    values.push(...like.values);
   }
 
   return {

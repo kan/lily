@@ -202,6 +202,8 @@ export interface Urls {
   /** 管理画面でこの記事を開く URL。**ハッシュの形は `ADMIN_HASH` が持つ。** */
   adminPost(publicId: string, options?: UrlOptions): string;
   postsJson(options?: UrlOptions): string;
+  /** 公開記事の全文検索。問い合わせ (`?q=`) は呼び出し側が足す。 */
+  search(options?: UrlOptions): string;
   sitemap(options?: UrlOptions): string;
   /** サイトマップの中身。index から指す 1 本。 */
   sitemapUrls(options?: UrlOptions): string;
@@ -289,6 +291,7 @@ function createUrls(config: PathsConfig): Urls {
     admin: (sub, o) => build(sub === undefined ? `/${ROUTE.admin}/` : `/${ROUTE.admin}/${sub}`, o),
     adminPost: (publicId, o) => build(`/${ROUTE.admin}/${adminPostHash(publicId)}`, o),
     postsJson: (o) => build(`/${ROUTE.postsJson}`, o),
+    search: (o) => build(`/${ROUTE.search}`, o),
     sitemap: (o) => build(`/${ROUTE.sitemap}`, o),
     sitemapUrls: (o) => build(`/${ROUTE.sitemapUrls}`, o),
     stylesheet: (o) => build(`/${ROUTE.styles}`, o),

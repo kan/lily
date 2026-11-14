@@ -9,6 +9,25 @@ Versions up to 0.5.2 are listed on the
 
 ## [Unreleased]
 
+### Added
+
+- `<mount>/search.json?q=` searches the published posts and answers JSON in the shape
+  `posts.json` uses, newest first, with `next` for the following page. It needs no
+  authentication and never sees drafts. Words are matched as substrings, so a word in the
+  middle of a Japanese sentence is found. See [AI agents](docs/agents.md#search).
+- Migration `0004_posts_fts.sql` adds the search index: an FTS5 table that triggers keep in
+  step with the posts, filled with the published posts when it is applied. **Run the
+  migrations before deploying**, as with every release.
+
+### Changed
+
+- **`search.json` is now a reserved path.** A post whose path starts with that segment can
+  no longer be created; an existing one would be shadowed by the search endpoint.
+- **`wrangler d1 export` no longer works as it stands**: D1 refuses to export a database with
+  a virtual table, and the search index is one. The portable export and the R2 backups are
+  not affected. The steps to take a D1 dump anyway are in
+  [Portable and backups](docs/portable.md#exporting-d1-with-the-search-index).
+
 ### Fixed
 
 - Writing frontmatter no longer slows down on a long run of digits that does not end

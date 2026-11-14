@@ -36,6 +36,7 @@ Everything is relative to `mountPath`.
 | `/rss.xml`, `/atom.xml` | Full-text feeds |
 | `/sitemap-index.xml`, `/sitemap-0.xml` | Sitemap |
 | `/posts.json` | Recent posts as JSON (`?limit=`), for another site to list them |
+| `/search.json` | Full-text search over published posts (`?q=`), for AI agents ([AI agents](./agents.md#search)) |
 | `/styles.css` | The theme's stylesheet |
 | `/preview/<token>` | Draft preview |
 | `/media/<public-id>/<filename>` | Attachments |
